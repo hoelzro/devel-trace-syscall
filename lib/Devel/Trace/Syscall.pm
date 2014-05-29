@@ -5,6 +5,10 @@ package Devel::Trace::Syscall;
 use strict;
 use warnings;
 
+use XSLoader;
+
+XSLoader::load(__PACKAGE__, $Devel::Trace::Syscall::VERSION);
+
 1;
 
 __END__
