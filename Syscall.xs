@@ -113,3 +113,17 @@ import(...)
             XSRETURN_UNDEF;
         }
     }
+
+SV *
+get_status()
+    CODE:
+        int status       = my_custom_signal;
+        my_custom_signal = 0;
+
+        if(UNLIKELY(status)) {
+            RETVAL = newSViv(1); // XXX reference count? caching?
+        } else {
+            XSRETURN_UNDEF;
+        }
+    OUTPUT:
+        RETVAL
