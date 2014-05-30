@@ -14,7 +14,6 @@
 // XXX assert that PL_sig_pending and PL_psig_pend are word-aligned?
 // XXX what if multiple syscalls occur in an interval?
 
-static void (*old_handler)(int);
 static int my_custom_signal = 0;
 
 static void
@@ -32,8 +31,6 @@ handle_syscall_enter(pid_t child)
     if(userdata.regs.orig_rax == __NR_open) { // XXX FIXME
         // XXX fun with alignment
         ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
-        ptrace(PTRACE_POKEDATA, child, (void *) &PL_sig_pending, 1);
-        ptrace(PTRACE_POKEDATA, child, (void *) &PL_psig_pend[SIG_SIZE-1], 1);
     }
 }
 
@@ -111,9 +108,6 @@ import(...)
             run_parent(child);
             my_exit(0);
         } else {
-            old_handler    = PL_sighandlerp;
-            PL_sighandlerp = my_sig_handler;
-
             ptrace(PTRACE_TRACEME, 0, 0, 0);
             raise(SIGTRAP);
             XSRETURN_UNDEF;
