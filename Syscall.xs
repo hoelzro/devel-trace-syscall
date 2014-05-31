@@ -17,6 +17,24 @@
 static int my_custom_signal = 0;
 
 static void
+pstrcpy(char *dst, size_t dst_size, pid_t child, void *addr)
+{
+    size_t offset = 0;
+    union {
+        long l;
+        char c[sizeof(long)];
+    } u;
+
+    memset(u.c, 0xff, sizeof(long));
+
+    while(!memchr(u.c, 0, sizeof(long))) {
+        u.l = ptrace(PTRACE_PEEKDATA, child, addr + offset * sizeof(void *), 0);
+        memcpy(dst + offset * sizeof(void *), u.c, sizeof(void *));
+        offset++;
+    }
+}
+
+static void
 handle_syscall_enter(pid_t child)
 {
     struct user userdata;
