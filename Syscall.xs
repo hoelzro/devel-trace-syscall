@@ -15,6 +15,7 @@
 // XXX what if multiple syscalls occur in an interval?
 
 static int my_custom_signal = 0;
+static int channel[2];
 
 static void
 pstrcpy(char *dst, size_t dst_size, pid_t child, void *addr)
@@ -38,6 +39,7 @@ static void
 handle_syscall_enter(pid_t child)
 {
     struct user userdata;
+    uint16_t syscall_no;
 
 #if __sparc__
     ptrace(PTRACE_GETREGS, child, &userdata, 0);
@@ -46,9 +48,12 @@ handle_syscall_enter(pid_t child)
 #endif
 
     // XXX arch-specific
-    if(userdata.regs.orig_rax == __NR_open) { // XXX FIXME
+    syscall_no = userdata.regs.orig_rax;
+
+    if(syscall_no == __NR_open) { // XXX FIXME
         // XXX fun with alignment
         ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
+        write(channel[1], &syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
     }
 }
 
@@ -107,6 +112,19 @@ my_sig_handler(int signum)
     old_handler(signum);
 }
 
+static uint16_t
+read_event(int fd)
+{
+    uint16_t syscall_no;
+
+    // XXX proper error handling
+    if(read(fd, &syscall_no, sizeof(uint16_t)) > 0) {
+        return syscall_no;
+    } else {
+        return 0;
+    }
+}
+
 MODULE = Devel::Trace::Syscall PACKAGE = Devel::Trace::Syscall
 
 void
@@ -116,6 +134,7 @@ import(...)
         pid_t child;
     PPCODE:
     {
+        pipe(channel);
         child = fork();
 
         if(child == -1) {
@@ -123,25 +142,30 @@ import(...)
         }
 
         if(child) {
+            close(channel[0]);
+            fcntl(channel[1], F_SETFL, O_NONBLOCK);
             run_parent(child);
             my_exit(0);
         } else {
+            close(channel[1]);
+            fcntl(channel[0], F_SETFL, O_NONBLOCK);
             ptrace(PTRACE_TRACEME, 0, 0, 0);
             raise(SIGTRAP);
             XSRETURN_UNDEF;
         }
     }
 
-SV *
-get_status()
+void
+flush_events(SV *trace)
     CODE:
-        int status       = my_custom_signal;
-        my_custom_signal = 0;
+        if(UNLIKELY(my_custom_signal)) {
+            char *trace_chars = SvPVutf8_nolen(trace);
+            uint16_t syscall_no;
 
-        if(UNLIKELY(status)) {
-            RETVAL = newSViv(1); // XXX reference count? caching?
-        } else {
-            XSRETURN_UNDEF;
+            my_custom_signal = 0;
+
+            while(syscall_no = read_event(channel[0])) {
+                char *syscall_name = "open";
+                printf("%s%s", syscall_name, trace_chars);
+            }
         }
-    OUTPUT:
-        RETVAL

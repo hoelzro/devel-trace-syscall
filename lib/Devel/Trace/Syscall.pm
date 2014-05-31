@@ -10,13 +10,10 @@ use XSLoader;
 
 XSLoader::load(__PACKAGE__, $Devel::Trace::Syscall::VERSION);
 
-my $previous_trace = '';
+my $previous_trace = " (BEGIN)\n";
 sub DB::DB {
-    if(get_status()) {
-        $previous_trace =~ s/action/open/;
-        print $previous_trace;
-    }
-    $previous_trace = Carp::longmess('action');
+    flush_events($previous_trace);
+    $previous_trace = Carp::longmess('');
 }
 
 1;
