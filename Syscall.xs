@@ -13,6 +13,12 @@
 
 #define MAX_SYSCALL_NO 315
 
+#ifdef __NR_mmap2
+# define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap || (value) == __NR_mmap2)
+#else
+# define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap)
+#endif
+
 // XXX error handling
 // XXX check that ptrace functions all work as intended during configure
 
@@ -132,7 +138,7 @@ import(...)
                 if(info->syscall_no == __NR_brk) {
                     Perl_warn("*** Monitoring brk will likely result in a lot of events out of the control of your program due to memory allocation; disabling ***");
                     continue;
-                } else if(info->syscall_no == __NR_mmap) {
+                } else if(SYSCALL_IS_MMAP(info->syscall_no)) {
                     Perl_warn("*** Monitoring mmap will likely result in a lot of events out of the control of your program due to memory allocation ***");
                 }
                 watching_syscall[info->syscall_no] = 1;
