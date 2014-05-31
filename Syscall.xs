@@ -15,8 +15,6 @@
 
 // XXX error handling
 // XXX check that ptrace functions all work as intended during configure
-// XXX assert that PL_sig_pending and PL_psig_pend are word-aligned?
-// XXX what if multiple syscalls occur in an interval?
 
 static int my_custom_signal = 0;
 static int channel[2];
