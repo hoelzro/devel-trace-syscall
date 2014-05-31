@@ -9,6 +9,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "syscall-hash.h"
+
+#define MAX_SYSCALL_NO 315
+
 // XXX error handling
 // XXX check that ptrace functions all work as intended during configure
 // XXX assert that PL_sig_pending and PL_psig_pend are word-aligned?
@@ -16,6 +20,7 @@
 
 static int my_custom_signal = 0;
 static int channel[2];
+static int watching_syscall[MAX_SYSCALL_NO + 1];
 
 static void
 pstrcpy(char *dst, size_t dst_size, pid_t child, void *addr)
@@ -50,7 +55,7 @@ handle_syscall_enter(pid_t child)
     // XXX arch-specific
     syscall_no = userdata.regs.orig_rax;
 
-    if(syscall_no == __NR_open) { // XXX FIXME
+    if(watching_syscall[syscall_no]) {
         // XXX fun with alignment
         ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
         write(channel[1], &syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
@@ -104,11 +109,24 @@ MODULE = Devel::Trace::Syscall PACKAGE = Devel::Trace::Syscall
 
 void
 import(...)
-    PREINIT:
+    INIT:
         int i;
         pid_t child;
-    PPCODE:
+    CODE:
     {
+        memset(watching_syscall, 0, sizeof(watching_syscall));
+        for(i = 1; i < items; i++) {
+            const char *syscall_name   = SvPVutf8_nolen(ST(i));
+            const struct syscall *info = syscall_lookup(syscall_name, strlen(syscall_name));
+
+            if(info) {
+                printf("requesting trace on %d\n", info->syscall_no);
+                watching_syscall[info->syscall_no] = 1;
+            } else {
+                // XXX get mad
+            }
+        }
+
         pipe(channel);
         child = fork();
 
