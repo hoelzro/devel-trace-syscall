@@ -129,7 +129,12 @@ import(...)
             const struct syscall *info = syscall_lookup(syscall_name, strlen(syscall_name));
 
             if(info) {
-                printf("requesting trace on %d\n", info->syscall_no);
+                if(info->syscall_no == __NR_brk) {
+                    Perl_warn("*** Monitoring brk will likely result in a lot of events out of the control of your program due to memory allocation; disabling ***");
+                    continue;
+                } else if(info->syscall_no == __NR_mmap) {
+                    Perl_warn("*** Monitoring mmap will likely result in a lot of events out of the control of your program due to memory allocation ***");
+                }
                 watching_syscall[info->syscall_no] = 1;
             } else {
                 Perl_croak("unknown syscall '%s'", syscall_name);
