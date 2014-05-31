@@ -132,7 +132,7 @@ import(...)
                 printf("requesting trace on %d\n", info->syscall_no);
                 watching_syscall[info->syscall_no] = 1;
             } else {
-                // XXX get mad
+                Perl_croak("unknown syscall '%s'", syscall_name);
             }
         }
 
