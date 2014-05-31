@@ -61,6 +61,8 @@ handle_syscall_enter(pid_t child)
             if(child_is_flushing) {
                 return;
             }
+        } else if(syscall_no == __NR_read && userdata.regs.rdi == channel[0]) {
+            return;
         }
 
         // XXX fun with alignment
