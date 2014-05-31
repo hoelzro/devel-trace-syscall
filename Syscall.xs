@@ -87,31 +87,6 @@ run_parent(pid_t child)
     }
 }
 
-static void
-my_sig_handler(int signum)
-{
-    if(signum == SIG_SIZE-1 && my_custom_signal) {
-        my_custom_signal = 0;
-
-        dSP;
-
-        ENTER;
-        SAVETMPS;
-
-        PUSHMARK(SP);
-        XPUSHs(sv_2mortal(newSVpv("open", 0)));
-        PUTBACK;
-
-        call_pv("Carp::cluck", G_VOID | G_DISCARD);
-
-        FREETMPS;
-        LEAVE;
-
-        return;
-    }
-    old_handler(signum);
-}
-
 static uint16_t
 read_event(int fd)
 {
