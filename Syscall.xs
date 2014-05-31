@@ -135,6 +135,9 @@ import(...)
                 Perl_croak("unknown syscall '%s'", syscall_name);
             }
         }
+        if(items <= 1) {
+            Perl_croak("you must provide at least one system call to monitor");
+        }
 
         pipe(channel);
         child = fork();
