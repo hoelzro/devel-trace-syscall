@@ -99,14 +99,14 @@ run_parent(pid_t child)
     }
 }
 
-static uint16_t
-read_event(int fd)
+static int
+read_event(int fd, uint16_t *result)
 {
     uint16_t syscall_no;
 
     // XXX proper error handling
-    if(read(fd, &syscall_no, sizeof(uint16_t)) > 0) {
-        return syscall_no;
+    if(read(fd, result, sizeof(uint16_t)) > 0) {
+        return 1;
     } else {
         return 0;
     }
@@ -165,7 +165,7 @@ flush_events(SV *trace)
             my_custom_signal = 0;
             is_flushing      = 1;
 
-            while(syscall_no = read_event(channel[0])) {
+            while(read_event(channel[0], &syscall_no)) {
                 char *syscall_name = "open";
                 printf("%s%s", syscall_name, trace_chars);
             }
