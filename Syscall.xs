@@ -17,6 +17,7 @@
 // XXX check that ptrace functions all work as intended during configure
 
 static int my_custom_signal = 0;
+static int is_flushing = 0;
 static int channel[2];
 static int watching_syscall[MAX_SYSCALL_NO + 1];
 
@@ -54,6 +55,14 @@ handle_syscall_enter(pid_t child)
     syscall_no = userdata.regs.orig_rax;
 
     if(watching_syscall[syscall_no]) {
+        if(syscall_no == __NR_write) {
+            long child_is_flushing = ptrace(PTRACE_PEEKDATA, child, (void *) &is_flushing, 0);
+
+            if(child_is_flushing) {
+                return;
+            }
+        }
+
         // XXX fun with alignment
         ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
         write(channel[1], &syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
@@ -154,9 +163,11 @@ flush_events(SV *trace)
             uint16_t syscall_no;
 
             my_custom_signal = 0;
+            is_flushing      = 1;
 
             while(syscall_no = read_event(channel[0])) {
                 char *syscall_name = "open";
                 printf("%s%s", syscall_name, trace_chars);
             }
+            is_flushing = 0;
         }
