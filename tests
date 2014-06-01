@@ -3,3 +3,4 @@
 - write (make sure it doesn't report itself)
 - mmap/sbrk? (memory allocations)
 - system call happening in a destructor
+- What about system calls that happen at compile time? (opening of modules, for one)
