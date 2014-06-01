@@ -4,9 +4,12 @@ use ExtUtils::MakeMaker;
 # XXX check for gperf
 
 sub MY::postamble {
-    return <<'END_MAKE';
+    return <<"END_MAKE";
+syscalls.gperf:
+	$^X generate-syscalls-gperf.pl > \$@
+
 syscall-hash.h: syscalls.gperf
-	gperf --output-file=$@ $^
+	gperf --output-file=\$@ \$^
 END_MAKE
 }
 
