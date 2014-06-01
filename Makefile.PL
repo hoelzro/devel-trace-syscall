@@ -26,4 +26,7 @@ WriteMakefile(
     depend         => {
         'Syscall.o' => 'syscall-hash.h',
     },
+    clean => {
+        FILES => 'syscalls.gperf syscall-hash.h',
+    },
 );
