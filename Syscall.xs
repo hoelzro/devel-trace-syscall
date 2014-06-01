@@ -143,7 +143,7 @@ import(...)
                     Perl_warn("*** Monitoring brk will likely result in a lot of events out of the control of your program due to memory allocation; disabling ***");
                     continue;
                 } else if(SYSCALL_IS_MMAP(info->syscall_no)) {
-                    Perl_warn("*** Monitoring mmap will likely result in a lot of events out of the control of your program due to memory allocation ***");
+                    Perl_warn("*** Monitoring mmap will *not* list mmap calls that are made purely for memory allocation, considering this is out of the control of your program ***");
                 }
                 watching_syscall[info->syscall_no] = 1;
             } else {
