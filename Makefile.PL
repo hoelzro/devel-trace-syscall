@@ -1,5 +1,15 @@
- use 5.008005;
+use 5.008005;
 use ExtUtils::MakeMaker;
+
+# XXX check for gperf
+
+sub MY::postamble {
+    return <<'END_MAKE';
+syscall-hash.h: syscalls.gperf
+	gperf --output-file=$@ $^
+END_MAKE
+}
+
 WriteMakefile(
     NAME           => 'Devel::Trace::Syscall',
     VERSION_FROM   => 'lib/Devel/Trace/Syscall.pm',
@@ -10,4 +20,7 @@ WriteMakefile(
     DEFINE         => '',
     INC            => '-I.',
     OBJECT         => '$(O_FILES)',
+    depend         => {
+        'Syscall.o' => 'syscall-hash.h',
+    },
 );
