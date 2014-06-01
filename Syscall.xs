@@ -69,6 +69,10 @@ handle_syscall_enter(pid_t child)
             }
         } else if(syscall_no == __NR_read && userdata.regs.rdi == channel[0]) {
             return;
+        } else if(SYSCALL_IS_MMAP(syscall_no)) {
+            if( ((int) userdata.regs.r8) == -1) {
+                return;
+            }
         }
 
         // XXX fun with alignment
