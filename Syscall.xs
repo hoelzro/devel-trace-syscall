@@ -186,8 +186,7 @@ flush_events(SV *trace)
             is_flushing      = 1;
 
             while(read_event(channel[0], &syscall_no)) {
-                char *syscall_name = "open";
-                printf("system call #%d %s", syscall_no, trace_chars);
+                printf("system call %s%s", syscall_names[syscall_no], trace_chars);
             }
             is_flushing = 0;
         }
