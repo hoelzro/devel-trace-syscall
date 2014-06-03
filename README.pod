@@ -45,6 +45,7 @@ L<http://hoelz.ro/blog/...>
 I have no idea how this module behaves when there are multiple interpreters
 present in a single process, or in conjunction with threads.  It may work, it
 may blow your computer up, it may summon an army of squirrels to raid your kitchen.
+I highly doubt it will do either of the latter two, but I also doubt it will work either.
 Use at your own risk!
 
 =item *
@@ -63,6 +64,16 @@ Using C<no Devel::Trace::Syscall> won't turn this off.  It's a one-way ticket.
 =item *
 
 System calls happening at global destruction time might be interesting.
+
+=item *
+
+x86_64 only for now.  Patches to add support for other architectures are welcome!
+
+=item *
+
+There's no support for tracing grandchildren after a child C<fork()>s.  This is because
+we have no guarantee that the grandchild will even be a Perl process, let alone one run
+with C<-d:Trace::Syscall>.
 
 =back
 
