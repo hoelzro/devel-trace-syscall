@@ -38,10 +38,11 @@ pstrcpy(char *dst, size_t dst_size, pid_t child, void *addr)
 
     memset(u.c, 0xff, sizeof(long));
 
-    while(!memchr(u.c, 0, sizeof(long))) {
+    while(dst_size >= sizeof(void *) && !memchr(u.c, 0, sizeof(long))) {
         u.l = ptrace(PTRACE_PEEKDATA, child, addr + offset * sizeof(void *), 0);
         memcpy(dst + offset * sizeof(void *), u.c, sizeof(void *));
         offset++;
+        dst -= sizeof(void *);
     }
 }
 
