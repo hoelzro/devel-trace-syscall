@@ -49,6 +49,57 @@ pstrcpy(char *dst, size_t dst_size, pid_t child, void *addr)
 }
 
 static void
+send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
+{
+    const char *arg = SYSCALL_ARGS[syscall_no];
+    unsigned long long args[] = {
+        userdata->regs.rdi,
+        userdata->regs.rsi,
+        userdata->regs.rdx,
+        userdata->regs.rcx,
+        userdata->regs.r8,
+        userdata->regs.r9,
+    };
+    int arg_idx = 0;
+
+    if(! arg) {
+        return;
+    }
+
+    while(*arg) {
+        switch(*arg) {
+            case 'z': // zero (NUL) terminated string
+                {
+                    char *child_p = (char *) args[arg_idx++];
+                    char buffer[64];
+
+                    while(1) {
+                        char *end_p;
+                        pstrcpy(buffer, 64, child, child_p);
+
+                        end_p = memchr(buffer, 0, 64);
+
+                        if(end_p) {
+                            write(fd, buffer, end_p + 1 - child_p);
+                            break;
+                        } else {
+                            write(fd, buffer, 64);
+                            child_p += 64;
+                        }
+                    }
+                }
+                break;
+            case 'i': // signed int
+            case 'u': // unsigned int
+            case 'p': // pointer
+                write(fd, &args[arg_idx++], sizeof(args[0]));
+                break;
+        }
+        arg++;
+    }
+}
+
+static void
 handle_syscall_enter(pid_t child)
 {
     struct user userdata;
@@ -81,6 +132,8 @@ handle_syscall_enter(pid_t child)
         // XXX fun with alignment
         ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
         write(channel[1], &syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
+
+        send_args(child, channel[1], syscall_no, &userdata);
     }
 }
 
@@ -125,6 +178,83 @@ read_event(int fd, uint16_t *result)
     } else {
         return 0;
     }
+}
+
+static void
+read_args(int fd, uint16_t syscall_no)
+{
+    const char *arg = SYSCALL_ARGS[syscall_no];
+
+    if(! arg) {
+        return;
+    }
+
+    while(*arg) {
+        printf("got an argument!\n");
+        int bytes_read;
+
+        switch(*arg) {
+            case 'z':
+                {
+                    char *end_p;
+                    char buffer[64];
+
+                    while(1) {
+                        bytes_read = read(fd, buffer, 64);
+
+                        if(bytes_read != 64) {
+                            goto short_read;
+                        }
+
+                        end_p = memchr(buffer, 0, 64);
+
+                        if(end_p) {
+                            fwrite(buffer, 1, end_p - buffer, stdout);
+                            break;
+                        } else {
+                            fwrite(buffer, 1, 64, stdout);
+                        }
+                    }
+                }
+                break;
+            case 'i':
+                {
+                    unsigned long long arg;
+                    bytes_read = read(fd, &arg, sizeof(unsigned long long));
+                    if(bytes_read < sizeof(unsigned long long)) {
+                        goto short_read;
+                    }
+                    printf("%d\n", arg);
+                }
+                break;
+            case 'u':
+                {
+                    unsigned long long arg;
+                    bytes_read = read(fd, &arg, sizeof(unsigned long long));
+                    if(bytes_read < sizeof(unsigned long long)) {
+                        goto short_read;
+                    }
+                    printf("%u\n", arg);
+                }
+                break;
+            case 'p':
+                {
+                    unsigned long long arg;
+                    bytes_read = read(fd, &arg, sizeof(unsigned long long));
+                    if(bytes_read < sizeof(unsigned long long)) {
+                        goto short_read;
+                    }
+                    printf("%p\n", arg);
+                }
+                break;
+        }
+        arg++;
+    }
+    return;
+
+short_read:
+    fprintf(stderr, "short read on IPC pipe\n");
+    return;
 }
 
 static void
@@ -204,6 +334,7 @@ flush_events(SV *trace)
             is_flushing      = 1;
 
             while(read_event(channel[0], &syscall_no)) {
+                read_args(channel[0], syscall_no);
                 printf("system call %s%s", syscall_names[syscall_no], trace_chars);
             }
             is_flushing = 0;
