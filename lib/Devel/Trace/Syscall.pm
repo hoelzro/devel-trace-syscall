@@ -29,10 +29,6 @@ __END__
 
     perl -d:Trace::Syscall=open,openat my-script.pl # same thing, but for openat too
 
-    # from Perl (this should occur as early as possible)
-
-    use Devel::Trace::Syscall qw(open openat);
-
 =head1 DESCRIPTION
 
 Have you ever been looking at the C<strace> output for a Perl process, looking at all of the
@@ -45,8 +41,6 @@ uses C<ptrace> to trace the process, printing a stack trace whenever one of the 
 you specify is called.  How cool is that!
 
 =head1 HOW IT WORKS
-
-L<http://hoelz.ro/blog/...>
 
 =head1 CAVEATS
 
