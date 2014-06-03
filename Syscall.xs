@@ -27,6 +27,8 @@ static int is_flushing = 0;
 static int channel[2];
 static int watching_syscall[MAX_SYSCALL_NO + 1];
 
+static const char *SYSCALL_ARGS[MAX_SYSCALL_NO + 1];
+
 static void
 pstrcpy(char *dst, size_t dst_size, pid_t child, void *addr)
 {
@@ -125,6 +127,19 @@ read_event(int fd, uint16_t *result)
     }
 }
 
+static void
+init_syscall_args(void)
+{
+    memset(SYSCALL_ARGS, 0, sizeof(SYSCALL_ARGS));
+
+    SYSCALL_ARGS[__NR_open]       = "zii";
+    SYSCALL_ARGS[__NR_close]      = "i";
+    SYSCALL_ARGS[__NR_read]       = "upi";
+    SYSCALL_ARGS[__NR_write]      = "upi";
+    SYSCALL_ARGS[__NR_exit]       = "i";
+    SYSCALL_ARGS[__NR_exit_group] = "i";
+}
+
 MODULE = Devel::Trace::Syscall PACKAGE = Devel::Trace::Syscall
 
 void
@@ -134,6 +149,8 @@ import(...)
         pid_t child;
     CODE:
     {
+        init_syscall_args();
+
         memset(watching_syscall, 0, sizeof(watching_syscall));
         for(i = 1; i < items; i++) {
             const char *syscall_name   = SvPVutf8_nolen(ST(i));
