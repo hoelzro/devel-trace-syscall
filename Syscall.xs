@@ -5,12 +5,16 @@
 #include <asm/unistd.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <sys/user.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include "syscall-hash.h"
 
+#define WORD_SIZE (sizeof(void *))
+#define WORD_ALIGNED(p)\
+    ((void *) (((unsigned long long)p) & 0xFFFFFFFFFFFFFFF8))
 
 #ifdef __NR_mmap2
 # define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap || (value) == __NR_mmap2)
@@ -28,24 +32,57 @@ static int watching_syscall[MAX_SYSCALL_NO + 1];
 
 static const char *SYSCALL_ARGS[MAX_SYSCALL_NO + 1];
 
-static void
-pstrcpy(char *dst, size_t dst_size, pid_t child, void *addr)
+#if HAS_PROCESS_VM_READV
+static int
+pmemcpy(void *dst, size_t size, pid_t child, void *addr)
 {
-    size_t offset = 0;
+    struct iovec local;
+    struct iovec remote;
+
+    local.iov_base = dst;
+    local.iov_len  = size;
+
+    remote.iov_base = addr;
+    remote.iov_len  = size;
+
+    return (int) process_vm_readv(child,
+        &local, 1,
+        &remote, 1,
+        0);
+}
+#else
+static int
+pmemcpy(void *dst, size_t size, pid_t child, void *addr)
+{
     union {
         long l;
-        char c[sizeof(long)];
+        char c[WORD_SIZE];
     } u;
+    size_t offset       = addr - WORD_ALIGNED(addr);
+    size_t bytes_copied = 0;
+    addr -= offset;
 
-    memset(u.c, 0xff, sizeof(long));
+    while(bytes_copied < size) {
+        errno = 0;
+        u.l   = ptrace(PTRACE_PEEKDATA, child, addr, 0);
+        if(u.l == -1 && errno) {
+            return -1;
+        }
+        if(size < WORD_SIZE) {
+            memcpy(dst, u.c + offset, size - offset);
+        } else {
+            memcpy(dst, u.c + offset, WORD_SIZE - offset);
+        }
+        offset = 0;
 
-    while(dst_size >= sizeof(void *) && !memchr(u.c, 0, sizeof(long))) {
-        u.l = ptrace(PTRACE_PEEKDATA, child, addr + offset * sizeof(void *), 0);
-        memcpy(dst + offset * sizeof(void *), u.c, sizeof(void *));
-        offset++;
-        dst -= sizeof(void *);
+        dst          += WORD_SIZE;
+        addr         += WORD_SIZE;
+        bytes_copied += WORD_SIZE;
     }
+
+    return 0;
 }
+#endif
 
 static void
 send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
