@@ -227,7 +227,6 @@ read_args(FILE *fp, uint16_t syscall_no)
     }
 
     while(*arg) {
-        printf("got an argument!\n");
         int bytes_read;
 
         switch(*arg) {
