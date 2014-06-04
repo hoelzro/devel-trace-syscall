@@ -87,6 +87,7 @@ pmemcpy(void *dst, size_t size, pid_t child, void *addr)
 static void
 send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
 {
+    int status;
     const char *arg = SYSCALL_ARGS[syscall_no];
     unsigned long long args[] = {
         userdata->regs.rdi,
@@ -111,12 +112,12 @@ send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
 
                     while(1) {
                         char *end_p;
-                        pstrcpy(buffer, 64, child, child_p);
+                        status = pmemcpy(buffer, 64, child, child_p);
 
                         end_p = memchr(buffer, 0, 64);
 
                         if(end_p) {
-                            write(fd, buffer, end_p + 1 - child_p);
+                            write(fd, buffer, (end_p - buffer) + 1);
                             break;
                         } else {
                             write(fd, buffer, 64);
