@@ -11,7 +11,6 @@
 
 #include "syscall-hash.h"
 
-#define MAX_SYSCALL_NO 315
 
 #ifdef __NR_mmap2
 # define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap || (value) == __NR_mmap2)
