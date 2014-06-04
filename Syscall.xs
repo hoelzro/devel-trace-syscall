@@ -263,6 +263,7 @@ read_args(FILE *fp, uint16_t syscall_no)
                             fwrite(buffer, 1, 64, stdout);
                         }
                     }
+                    printf("\n");
                 }
                 break;
             case 'i':
