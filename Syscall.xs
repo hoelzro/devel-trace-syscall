@@ -205,12 +205,12 @@ run_parent(pid_t child)
 }
 
 static int
-read_event(int fd, uint16_t *result)
+read_event(FILE *fp, uint16_t *result)
 {
     uint16_t syscall_no;
 
     // XXX proper error handling
-    if(read(fd, result, sizeof(uint16_t)) > 0) {
+    if(fread(result, sizeof(uint16_t), 1, fp) > 0) {
         return 1;
     } else {
         return 0;
@@ -218,7 +218,7 @@ read_event(int fd, uint16_t *result)
 }
 
 static void
-read_args(int fd, uint16_t syscall_no)
+read_args(FILE *fp, uint16_t syscall_no)
 {
     const char *arg = SYSCALL_ARGS[syscall_no];
 
@@ -235,11 +235,23 @@ read_args(int fd, uint16_t syscall_no)
                 {
                     char *end_p;
                     char buffer[64];
+                    int i;
 
                     while(1) {
-                        bytes_read = read(fd, buffer, 64);
+                        bytes_read = 0;
+                        for(i = 0; i < 64; i++) {
+                            buffer[i] = fgetc(fp);
 
-                        if(bytes_read != 64) {
+                            if(buffer[i] == EOF) {
+                                break;
+                            } else if(buffer[i] == '\0') {
+                                bytes_read++;
+                                break;
+                            }
+                            bytes_read++;
+                        }
+
+                        if(bytes_read != 64 && buffer[i] != '\0') {
                             goto short_read;
                         }
 
@@ -257,7 +269,7 @@ read_args(int fd, uint16_t syscall_no)
             case 'i':
                 {
                     unsigned long long arg;
-                    bytes_read = read(fd, &arg, sizeof(unsigned long long));
+                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
                     if(bytes_read < sizeof(unsigned long long)) {
                         goto short_read;
                     }
@@ -267,7 +279,7 @@ read_args(int fd, uint16_t syscall_no)
             case 'u':
                 {
                     unsigned long long arg;
-                    bytes_read = read(fd, &arg, sizeof(unsigned long long));
+                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
                     if(bytes_read < sizeof(unsigned long long)) {
                         goto short_read;
                     }
@@ -277,7 +289,7 @@ read_args(int fd, uint16_t syscall_no)
             case 'p':
                 {
                     unsigned long long arg;
-                    bytes_read = read(fd, &arg, sizeof(unsigned long long));
+                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
                     if(bytes_read < sizeof(unsigned long long)) {
                         goto short_read;
                     }
@@ -363,6 +375,11 @@ import(...)
 void
 flush_events(SV *trace)
     CODE:
+        static FILE *fp = NULL;
+
+        if(fp == NULL) {
+            fp = fdopen(channel[0], "r");
+        }
         if(UNLIKELY(my_custom_signal)) {
             char *trace_chars = SvPVutf8_nolen(trace);
             uint16_t syscall_no;
@@ -370,8 +387,8 @@ flush_events(SV *trace)
             my_custom_signal = 0;
             is_flushing      = 1;
 
-            while(read_event(channel[0], &syscall_no)) {
-                read_args(channel[0], syscall_no);
+            while(read_event(fp, &syscall_no)) {
+                read_args(fp, syscall_no);
                 printf("system call %s%s", syscall_names[syscall_no], trace_chars);
             }
             is_flushing = 0;
