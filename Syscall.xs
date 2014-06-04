@@ -218,16 +218,24 @@ read_event(FILE *fp, uint16_t *result)
 }
 
 static void
-read_args(FILE *fp, uint16_t syscall_no)
+read_and_print_args(FILE *fp, uint16_t syscall_no)
 {
     const char *arg = SYSCALL_ARGS[syscall_no];
+    int first = 1;
 
     if(! arg) {
+        printf("...");
         return;
     }
 
     while(*arg) {
         int bytes_read;
+
+        if(first) {
+            first = 0;
+        } else {
+            printf(", ");
+        }
 
         switch(*arg) {
             case 'z':
@@ -236,6 +244,7 @@ read_args(FILE *fp, uint16_t syscall_no)
                     char buffer[64];
                     int i;
 
+                    printf("\"");
                     while(1) {
                         bytes_read = 0;
                         for(i = 0; i < 64; i++) {
@@ -263,7 +272,7 @@ read_args(FILE *fp, uint16_t syscall_no)
                             fwrite(buffer, 1, 64, stdout);
                         }
                     }
-                    printf("\n");
+                    printf("\"");
                 }
                 break;
             case 'i':
@@ -273,7 +282,7 @@ read_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < sizeof(unsigned long long)) {
                         goto short_read;
                     }
-                    printf("%d\n", arg);
+                    printf("%d", arg);
                 }
                 break;
             case 'u':
@@ -283,7 +292,7 @@ read_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < sizeof(unsigned long long)) {
                         goto short_read;
                     }
-                    printf("%u\n", arg);
+                    printf("%u", arg);
                 }
                 break;
             case 'p':
@@ -293,7 +302,7 @@ read_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < sizeof(unsigned long long)) {
                         goto short_read;
                     }
-                    printf("%p\n", arg);
+                    printf("%p", arg);
                 }
                 break;
         }
@@ -388,8 +397,9 @@ flush_events(SV *trace)
             is_flushing      = 1;
 
             while(read_event(fp, &syscall_no)) {
-                read_args(fp, syscall_no);
-                printf("system call %s%s", syscall_names[syscall_no], trace_chars);
+                printf("%s(", syscall_names[syscall_no]);
+                read_and_print_args(fp, syscall_no);
+                printf(")%s", trace_chars);
             }
             is_flushing = 0;
         }
