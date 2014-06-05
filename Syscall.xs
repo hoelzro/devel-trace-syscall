@@ -136,7 +136,7 @@ send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
     }
 }
 
-static void
+static int
 handle_syscall_enter(pid_t child)
 {
     struct user userdata;
@@ -156,13 +156,13 @@ handle_syscall_enter(pid_t child)
             long child_is_flushing = ptrace(PTRACE_PEEKDATA, child, (void *) &is_flushing, 0);
 
             if(child_is_flushing) {
-                return;
+                return 0;
             }
         } else if(syscall_no == __NR_read && userdata.regs.rdi == channel[0]) {
-            return;
+            return 0;
         } else if(SYSCALL_IS_MMAP(syscall_no)) {
             if( ((int) userdata.regs.r8) == -1) {
-                return;
+                return 0;
             }
         }
 
@@ -171,7 +171,9 @@ handle_syscall_enter(pid_t child)
         write(channel[1], &syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
 
         send_args(child, channel[1], syscall_no, &userdata);
+        return 1;
     }
+    return 0;
 }
 
 static void
