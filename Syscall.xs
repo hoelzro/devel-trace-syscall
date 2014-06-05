@@ -366,7 +366,7 @@ init_syscall_args(void)
 {
     memset(SYSCALL_ARGS, 0, sizeof(SYSCALL_ARGS));
 
-    SYSCALL_ARGS[__NR_open]       = "zii";
+    SYSCALL_ARGS[__NR_open]       = "zxo";
     SYSCALL_ARGS[__NR_close]      = "i";
     SYSCALL_ARGS[__NR_read]       = "upi";
     SYSCALL_ARGS[__NR_write]      = "upi";
