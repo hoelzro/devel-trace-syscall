@@ -129,6 +129,8 @@ send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
             case 'i': // signed int
             case 'u': // unsigned int
             case 'p': // pointer
+            case 'o': // unsigned int (formatted in octal)
+            case 'x': // unsigned int (formatted in hex)
                 write(fd, &args[arg_idx++], sizeof(args[0]));
                 break;
         }
@@ -317,6 +319,26 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                         goto short_read;
                     }
                     printf("%p", arg);
+                }
+                break;
+            case 'o':
+                {
+                    unsigned long long arg;
+                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
+                    if(bytes_read < sizeof(unsigned long long)) {
+                        goto short_read;
+                    }
+                    printf("0%o", arg);
+                }
+                break;
+            case 'x':
+                {
+                    unsigned long long arg;
+                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
+                    if(bytes_read < sizeof(unsigned long long)) {
+                        goto short_read;
+                    }
+                    printf("0x%x", arg);
                 }
                 break;
         }
