@@ -23,6 +23,7 @@ WriteMakefile(
     DEFINE         => '',
     INC            => '-I.',
     OBJECT         => '$(O_FILES)',
+    CCFLAGS        => '-Wall -Wextra',
     depend         => {
         'Syscall.o' => 'syscall-hash.h',
     },
