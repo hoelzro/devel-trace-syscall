@@ -177,16 +177,28 @@ handle_syscall_enter(pid_t child)
 }
 
 static void
-handle_syscall_exit(pid_t child)
+handle_syscall_exit(pid_t child, int handled_previous_enter)
 {
-    // no-op (for now)
+    if(handled_previous_enter) {
+        struct user userdata;
+
+#if __sparc__
+        ptrace(PTRACE_GETREGS, child, &userdata, 0);
+#else
+        ptrace(PTRACE_GETREGS, child, 0, &userdata);
+#endif
+
+        unsigned long long return_value = userdata.regs.rax;
+        write(channel[1], &return_value, sizeof(unsigned long long)); // XXX error checking, chance of EPIPE?
+    }
 }
 
 static void
 run_parent(pid_t child)
 {
     int status;
-    int enter;
+    int enter = 1;
+    int handled_previous_enter;
 
     waitpid(child, &status, 0);
 
@@ -196,9 +208,9 @@ run_parent(pid_t child)
     while(waitpid(child, &status, 0) >= 0) {
         if(WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80)) {
             if(enter) {
-                handle_syscall_enter(child);
+                handled_previous_enter = handle_syscall_enter(child);
             } else {
-                handle_syscall_exit(child);
+                handle_syscall_exit(child, handled_previous_enter);
             }
             enter = !enter;
         }
@@ -317,6 +329,16 @@ short_read:
     return;
 }
 
+static int
+read_return_value(FILE *fp)
+{
+    unsigned long long return_value;
+
+    fread(&return_value, 1, sizeof(unsigned long long), fp);
+
+    return (int) return_value;
+}
+
 static void
 init_syscall_args(void)
 {
@@ -401,7 +423,7 @@ flush_events(SV *trace)
             while(read_event(fp, &syscall_no)) {
                 printf("%s(", syscall_names[syscall_no]);
                 read_and_print_args(fp, syscall_no);
-                printf(")%s", trace_chars);
+                printf(") = %d %s", read_return_value(fp), trace_chars);
             }
             is_flushing = 0;
         }
