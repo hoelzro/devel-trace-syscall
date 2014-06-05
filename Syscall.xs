@@ -396,6 +396,9 @@ import(...)
                     continue;
                 } else if(SYSCALL_IS_MMAP(info->syscall_no)) {
                     Perl_warn("*** Monitoring mmap will *not* list mmap calls that are made purely for memory allocation, considering this is out of the control of your program ***");
+                } else if(info->syscall_no == __NR_exit || info->syscall_no == __NR_exit_group) {
+                    Perl_warn("*** Because of the way this module works, events for exit and exit_group will never appear. ***");
+                    continue;
                 }
                 watching_syscall[info->syscall_no] = 1;
             } else {
