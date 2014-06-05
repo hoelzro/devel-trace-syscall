@@ -81,6 +81,10 @@ There's no support for tracing grandchildren after a child C<fork()>s.  This is 
 we have no guarantee that the grandchild will even be a Perl process, let alone one run
 with C<-d:Trace::Syscall>.
 
+=item *
+
+You can't monitor C<exit>/C<exit_group>.
+
 =back
 
 =head1 FUTURE IDEAS
