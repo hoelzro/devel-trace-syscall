@@ -11,10 +11,12 @@
 #include <unistd.h>
 
 #include "syscall-hash.h"
+#include "syscall-info.h"
 
+#define WORD unsigned long long
 #define WORD_SIZE (sizeof(void *))
 #define WORD_ALIGNED(p)\
-    ((void *) (((unsigned long long)p) & 0xFFFFFFFFFFFFFFF8))
+    ((void *) (((unsigned long long)p) & (0xFFFFFFFFFFFFFFFF & ~(WORD_SIZE - 1))))
 
 #ifdef __NR_mmap2
 # define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap || (value) == __NR_mmap2)
@@ -85,18 +87,10 @@ pmemcpy(void *dst, size_t size, pid_t child, void *addr)
 #endif
 
 static void
-send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
+send_args(pid_t child, int fd, struct syscall_info *info)
 {
     int status;
-    const char *arg = SYSCALL_ARGS[syscall_no];
-    unsigned long long args[] = {
-        userdata->regs.rdi,
-        userdata->regs.rsi,
-        userdata->regs.rdx,
-        userdata->regs.rcx,
-        userdata->regs.r8,
-        userdata->regs.r9,
-    };
+    const char *arg = SYSCALL_ARGS[info->syscall_no];
     int arg_idx = 0;
 
     if(! arg) {
@@ -107,7 +101,7 @@ send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
         switch(*arg) {
             case 'z': // zero (NUL) terminated string
                 {
-                    char *child_p = (char *) args[arg_idx++];
+                    char *child_p = (char *) info->args[arg_idx++];
                     char buffer[64];
 
                     while(1) {
@@ -131,7 +125,7 @@ send_args(pid_t child, int fd, int syscall_no, struct user *userdata)
             case 'p': // pointer
             case 'o': // unsigned int (formatted in octal)
             case 'x': // unsigned int (formatted in hex)
-                write(fd, &args[arg_idx++], sizeof(args[0]));
+                write(fd, &info->args[arg_idx++], sizeof(info->args[0]));
                 break;
         }
         arg++;
@@ -142,37 +136,35 @@ static int
 handle_syscall_enter(pid_t child)
 {
     struct user userdata;
-    uint16_t syscall_no;
+    struct syscall_info info;
 
 #if __sparc__
     ptrace(PTRACE_GETREGS, child, &userdata, 0);
 #else
     ptrace(PTRACE_GETREGS, child, 0, &userdata);
 #endif
+    syscall_info_from_user(&userdata, &info);
 
-    // XXX arch-specific
-    syscall_no = userdata.regs.orig_rax;
-
-    if(watching_syscall[syscall_no]) {
-        if(syscall_no == __NR_write) {
+    if(watching_syscall[info.syscall_no]) {
+        if(info.syscall_no == __NR_write) {
             long child_is_flushing = ptrace(PTRACE_PEEKDATA, child, (void *) &is_flushing, 0);
 
             if(child_is_flushing) {
                 return 0;
             }
-        } else if(syscall_no == __NR_read && userdata.regs.rdi == channel[0]) {
+        } else if(info.syscall_no == __NR_read && info.args[0] == channel[0]) {
             return 0;
-        } else if(SYSCALL_IS_MMAP(syscall_no)) {
-            if( ((int) userdata.regs.r8) == -1) {
+        } else if(SYSCALL_IS_MMAP(info.syscall_no)) {
+            if( ((int) info.args[4]) == -1) {
                 return 0;
             }
         }
 
         // XXX fun with alignment
         ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
-        write(channel[1], &syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
+        write(channel[1], &info.syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
 
-        send_args(child, channel[1], syscall_no, &userdata);
+        send_args(child, channel[1], &info);
         return 1;
     }
     return 0;
@@ -183,15 +175,16 @@ handle_syscall_exit(pid_t child, int handled_previous_enter)
 {
     if(handled_previous_enter) {
         struct user userdata;
+        struct syscall_info info;
 
 #if __sparc__
         ptrace(PTRACE_GETREGS, child, &userdata, 0);
 #else
         ptrace(PTRACE_GETREGS, child, 0, &userdata);
 #endif
+        syscall_info_from_user(&userdata, &info);
 
-        unsigned long long return_value = userdata.regs.rax;
-        write(channel[1], &return_value, sizeof(unsigned long long)); // XXX error checking, chance of EPIPE?
+        write(channel[1], &info.return_value, sizeof(int)); // XXX error checking, chance of EPIPE?
     }
 }
 
@@ -294,8 +287,8 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             case 'i':
                 {
                     unsigned long long arg;
-                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
-                    if(bytes_read < sizeof(unsigned long long)) {
+                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
+                    if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
                     printf("%d", arg);
@@ -304,8 +297,8 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             case 'u':
                 {
                     unsigned long long arg;
-                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
-                    if(bytes_read < sizeof(unsigned long long)) {
+                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
+                    if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
                     printf("%u", arg);
@@ -314,8 +307,8 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             case 'p':
                 {
                     unsigned long long arg;
-                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
-                    if(bytes_read < sizeof(unsigned long long)) {
+                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
+                    if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
                     printf("%p", arg);
@@ -324,8 +317,8 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             case 'o':
                 {
                     unsigned long long arg;
-                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
-                    if(bytes_read < sizeof(unsigned long long)) {
+                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
+                    if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
                     printf("0%o", arg);
@@ -334,8 +327,8 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             case 'x':
                 {
                     unsigned long long arg;
-                    bytes_read = fread(&arg, 1, sizeof(unsigned long long), fp);
-                    if(bytes_read < sizeof(unsigned long long)) {
+                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
+                    if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
                     printf("0x%x", arg);
@@ -354,9 +347,9 @@ short_read:
 static int
 read_return_value(FILE *fp)
 {
-    unsigned long long return_value;
+    int return_value;
 
-    fread(&return_value, 1, sizeof(unsigned long long), fp);
+    fread(&return_value, 1, sizeof(int), fp);
 
     return (int) return_value;
 }
