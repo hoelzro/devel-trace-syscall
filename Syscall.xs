@@ -216,8 +216,6 @@ run_parent(pid_t child)
 static int
 read_event(FILE *fp, uint16_t *result)
 {
-    uint16_t syscall_no;
-
     // XXX proper error handling
     if(fread(result, sizeof(uint16_t), 1, fp) > 0) {
         return 1;
