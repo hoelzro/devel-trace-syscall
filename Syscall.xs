@@ -445,7 +445,7 @@ flush_events(SV *trace)
             while(read_event(fp, &syscall_no)) {
                 printf("%s(", syscall_names[syscall_no]);
                 read_and_print_args(fp, syscall_no);
-                printf(") = %d %s", read_return_value(fp), trace_chars);
+                printf(") = %d%s", read_return_value(fp), trace_chars);
             }
             is_flushing = 0;
         }
