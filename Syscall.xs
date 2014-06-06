@@ -712,7 +712,7 @@ flush_events(SV *trace)
     CODE:
         static FILE *fp = NULL;
 
-        if(fp == NULL) {
+        if(fp == NULL && channel[0] != 0) {
             fp = fdopen(channel[0], "r");
         }
         if(UNLIKELY(my_custom_signal)) {
