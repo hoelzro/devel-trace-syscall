@@ -229,7 +229,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
     int first = 1;
 
     if(! arg) {
-        printf("...");
+        fprintf(stderr, "...");
         return;
     }
 
@@ -239,7 +239,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
         if(first) {
             first = 0;
         } else {
-            printf(", ");
+            fprintf(stderr, ", ");
         }
 
         switch(*arg) {
@@ -249,7 +249,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                     char buffer[64];
                     int i;
 
-                    printf("\"");
+                    fprintf(stderr, "\"");
                     while(1) {
                         bytes_read = 0;
                         for(i = 0; i < 64; i++) {
@@ -271,13 +271,13 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                         end_p = memchr(buffer, 0, 64);
 
                         if(end_p) {
-                            fwrite(buffer, 1, end_p - buffer, stdout);
+                            fwrite(buffer, 1, end_p - buffer, stderr);
                             break;
                         } else {
-                            fwrite(buffer, 1, 64, stdout);
+                            fwrite(buffer, 1, 64, stderr);
                         }
                     }
-                    printf("\"");
+                    fprintf(stderr, "\"");
                 }
                 break;
             case 'i':
@@ -287,7 +287,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
-                    printf("%d", arg);
+                    fprintf(stderr, "%d", arg);
                 }
                 break;
             case 'u':
@@ -297,7 +297,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
-                    printf("%u", arg);
+                    fprintf(stderr, "%u", arg);
                 }
                 break;
             case 'p':
@@ -307,7 +307,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
-                    printf("%p", arg);
+                    fprintf(stderr, "%p", arg);
                 }
                 break;
             case 'o':
@@ -317,7 +317,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
-                    printf("0%o", arg);
+                    fprintf(stderr, "0%o", arg);
                 }
                 break;
             case 'x':
@@ -327,7 +327,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
                     if(bytes_read < WORD_SIZE) {
                         goto short_read;
                     }
-                    printf("0x%x", arg);
+                    fprintf(stderr, "0x%x", arg);
                 }
                 break;
         }
@@ -435,9 +435,9 @@ flush_events(SV *trace)
             is_flushing      = 1;
 
             while(read_event(fp, &syscall_no)) {
-                printf("%s(", syscall_names[syscall_no]);
+                fprintf(stderr, "%s(", syscall_names[syscall_no]);
                 read_and_print_args(fp, syscall_no);
-                printf(") = %d%s", read_return_value(fp), trace_chars);
+                fprintf(stderr, ") = %d%s", read_return_value(fp), trace_chars);
             }
             is_flushing = 0;
         }
