@@ -13,7 +13,6 @@
 #include "syscall-hash.h"
 #include "syscall-info.h"
 
-#define WORD unsigned long long
 #define WORD_SIZE (sizeof(void *))
 #define WORD_ALIGNED(p)\
     ((void *) (((unsigned long long)p) & (0xFFFFFFFFFFFFFFFF & ~(WORD_SIZE - 1))))
