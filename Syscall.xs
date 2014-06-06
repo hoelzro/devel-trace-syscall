@@ -211,17 +211,6 @@ run_parent(pid_t child)
     }
 }
 
-static int
-read_event(FILE *fp, uint16_t *result)
-{
-    // XXX proper error handling
-    if(fread(result, sizeof(uint16_t), 1, fp) > 0) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 static void
 read_and_print_args(FILE *fp, uint16_t syscall_no)
 {
@@ -434,7 +423,7 @@ flush_events(SV *trace)
             my_custom_signal = 0;
             is_flushing      = 1;
 
-            while(read_event(fp, &syscall_no)) {
+            while(fread(&syscall_no, sizeof(uint16_t), 1, fp) > 0) {
                 fprintf(stderr, "%s(", syscall_names[syscall_no]);
                 read_and_print_args(fp, syscall_no);
                 fprintf(stderr, ") = %d%s", read_return_value(fp), trace_chars);
