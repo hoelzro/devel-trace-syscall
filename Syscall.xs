@@ -26,8 +26,8 @@
 // XXX error handling
 // XXX check that ptrace functions all work as intended during configure
 
-static int my_custom_signal = 0;
-static int is_flushing = 0;
+static int my_custom_signal __attribute__((aligned (WORD_SIZE))) = 0;
+static int is_flushing __attribute__((aligned (WORD_SIZE))) = 0;
 static int channel[2];
 static int watching_syscall[MAX_SYSCALL_NO + 1];
 
@@ -159,7 +159,6 @@ handle_syscall_enter(pid_t child)
             }
         }
 
-        // XXX fun with alignment
         ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
         write(channel[1], &info.syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
 
