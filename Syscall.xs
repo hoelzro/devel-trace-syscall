@@ -383,28 +383,28 @@ import(...)
 
             if(info) {
                 if(info->syscall_no == __NR_brk) {
-                    Perl_warn("*** Monitoring brk will likely result in a lot of events out of the control of your program due to memory allocation; disabling ***");
+                    warn("*** Monitoring brk will likely result in a lot of events out of the control of your program due to memory allocation; disabling ***");
                     continue;
                 } else if(SYSCALL_IS_MMAP(info->syscall_no)) {
-                    Perl_warn("*** Monitoring mmap will *not* list mmap calls that are made purely for memory allocation, considering this is out of the control of your program ***");
+                    warn("*** Monitoring mmap will *not* list mmap calls that are made purely for memory allocation, considering this is out of the control of your program ***");
                 } else if(info->syscall_no == __NR_exit || info->syscall_no == __NR_exit_group) {
-                    Perl_warn("*** Because of the way this module works, events for exit and exit_group will never appear. ***");
+                    warn("*** Because of the way this module works, events for exit and exit_group will never appear. ***");
                     continue;
                 }
                 watching_syscall[info->syscall_no] = 1;
             } else {
-                Perl_croak("unknown syscall '%s'", syscall_name);
+                croak("unknown syscall '%s'", syscall_name);
             }
         }
         if(items <= 1) {
-            Perl_croak("you must provide at least one system call to monitor");
+            croak("you must provide at least one system call to monitor");
         }
 
         pipe(channel);
         child = fork();
 
         if(child == -1) {
-            Perl_croak("failed to fork!"); // XXX reason
+            croak("failed to fork!"); // XXX reason
         }
 
         if(child) {
