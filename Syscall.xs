@@ -344,12 +344,31 @@ init_syscall_args(void)
 {
     memset(SYSCALL_ARGS, 0, sizeof(SYSCALL_ARGS));
 
-    SYSCALL_ARGS[__NR_open]       = "zxo";
-    SYSCALL_ARGS[__NR_close]      = "i";
-    SYSCALL_ARGS[__NR_read]       = "upi";
-    SYSCALL_ARGS[__NR_write]      = "upi";
-    SYSCALL_ARGS[__NR_exit]       = "i";
-    SYSCALL_ARGS[__NR_exit_group] = "i";
+    SYSCALL_ARGS[__NR_open]            = "zxo";
+    SYSCALL_ARGS[__NR_close]           = "i";
+    SYSCALL_ARGS[__NR_read]            = "upi";
+    SYSCALL_ARGS[__NR_write]           = "upi";
+    SYSCALL_ARGS[__NR_exit]            = "i";
+    SYSCALL_ARGS[__NR_exit_group]      = "i";
+    SYSCALL_ARGS[__NR_restart_syscall] = "";
+    SYSCALL_ARGS[__NR_pause]           = "";
+    SYSCALL_ARGS[__NR_getpid]          = "";
+    SYSCALL_ARGS[__NR_gettid]          = "";
+    SYSCALL_ARGS[__NR_getppid]         = "";
+    SYSCALL_ARGS[__NR_getuid]          = "";
+    SYSCALL_ARGS[__NR_geteuid]         = "";
+    SYSCALL_ARGS[__NR_getgid]          = "";
+    SYSCALL_ARGS[__NR_getegid]         = "";
+    SYSCALL_ARGS[__NR_getpgrp]         = "";
+    SYSCALL_ARGS[__NR_setsid]          = "";
+    SYSCALL_ARGS[__NR_sched_yield]     = "";
+    SYSCALL_ARGS[__NR_fork]            = "";
+    SYSCALL_ARGS[__NR_vfork]           = "";
+    SYSCALL_ARGS[__NR_rt_sigreturn]    = "";
+    SYSCALL_ARGS[__NR_munlockall]      = "";
+    SYSCALL_ARGS[__NR_inotify_init]    = "";
+    SYSCALL_ARGS[__NR_sync]            = "";
+    SYSCALL_ARGS[__NR_vhangup]         = "";
 }
 
 MODULE = Devel::Trace::Syscall PACKAGE = Devel::Trace::Syscall
