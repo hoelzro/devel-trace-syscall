@@ -88,7 +88,6 @@ pmemcpy(void *dst, size_t size, pid_t child, void *addr)
 static void
 send_args(pid_t child, int fd, struct syscall_info *info)
 {
-    int status;
     const char *arg = SYSCALL_ARGS[info->syscall_no];
     int arg_idx = 0;
 
@@ -105,7 +104,7 @@ send_args(pid_t child, int fd, struct syscall_info *info)
 
                     while(1) {
                         char *end_p;
-                        status = pmemcpy(buffer, 64, child, child_p);
+                        pmemcpy(buffer, 64, child, child_p);
 
                         end_p = memchr(buffer, 0, 64);
 
