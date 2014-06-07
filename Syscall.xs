@@ -231,95 +231,59 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             fprintf(stderr, ", ");
         }
 
-        switch(*arg) {
-            case 'z':
-                {
-                    char *end_p;
-                    char buffer[64];
-                    int i;
+        if(*arg == 'z') {
+            char *end_p;
+            char buffer[64];
+            int i;
 
-                    fprintf(stderr, "\"");
-                    while(1) {
-                        bytes_read = 0;
-                        for(i = 0; i < 64; i++) {
-                            buffer[i] = fgetc(fp);
+            fprintf(stderr, "\"");
+            while(1) {
+                bytes_read = 0;
+                for(i = 0; i < 64; i++) {
+                    buffer[i] = fgetc(fp);
 
-                            if(buffer[i] == EOF) {
-                                break;
-                            } else if(buffer[i] == '\0') {
-                                bytes_read++;
-                                break;
-                            }
-                            bytes_read++;
-                        }
+                    if(buffer[i] == EOF) {
+                        break;
+                    } else if(buffer[i] == '\0') {
+                        bytes_read++;
+                        break;
+                    }
+                    bytes_read++;
+                }
 
-                        if(bytes_read != 64 && buffer[i] != '\0') {
-                            goto short_read;
-                        }
+                if(bytes_read != 64 && buffer[i] != '\0') {
+                    goto short_read;
+                }
 
-                        end_p = memchr(buffer, 0, 64);
+                end_p = memchr(buffer, 0, 64);
 
-                        if(end_p) {
-                            fwrite(buffer, 1, end_p - buffer, stderr);
-                            break;
-                        } else {
-                            fwrite(buffer, 1, 64, stderr);
-                        }
-                    }
-                    fprintf(stderr, "\"");
+                if(end_p) {
+                    fwrite(buffer, 1, end_p - buffer, stderr);
+                    break;
+                } else {
+                    fwrite(buffer, 1, 64, stderr);
                 }
-                break;
-            case 'i':
-                {
-                    unsigned long long arg;
-                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
-                    if(bytes_read < WORD_SIZE) {
-                        goto short_read;
-                    }
-                    fprintf(stderr, "%d", arg);
-                }
-                break;
-            case 'u':
-                {
-                    unsigned long long arg;
-                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
-                    if(bytes_read < WORD_SIZE) {
-                        goto short_read;
-                    }
-                    fprintf(stderr, "%u", arg);
-                }
-                break;
-            case 'p':
-                {
-                    unsigned long long arg;
-                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
-                    if(bytes_read < WORD_SIZE) {
-                        goto short_read;
-                    }
-                    fprintf(stderr, "%p", arg);
-                }
-                break;
-            case 'o':
-                {
-                    unsigned long long arg;
-                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
-                    if(bytes_read < WORD_SIZE) {
-                        goto short_read;
-                    }
-                    fprintf(stderr, "0%o", arg);
-                }
-                break;
-            case 'x':
-                {
-                    unsigned long long arg;
-                    bytes_read = fread(&arg, 1, WORD_SIZE, fp);
-                    if(bytes_read < WORD_SIZE) {
-                        goto short_read;
-                    }
-                    fprintf(stderr, "0x%x", arg);
-                }
-                break;
+            }
+            fprintf(stderr, "\"");
+        } else {
+            const char *format_string = "";
+
+            unsigned long long arg_value;
+            bytes_read = fread(&arg_value, 1, WORD_SIZE, fp);
+            if(bytes_read < WORD_SIZE) {
+                goto short_read;
+            }
+
+            switch(*arg) {
+                case 'i': format_string = "%d";   break;
+                case 'u': format_string = "%u";   break;
+                case 'p': format_string = "%p";   break;
+                case 'o': format_string = "0%o";  break;
+                case 'x': format_string = "0x%x"; break;
+            }
+            fprintf(stderr, format_string, arg_value);
         }
+
         arg++;
     }
     return;
