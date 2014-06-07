@@ -222,7 +222,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
     }
 
     while(*arg) {
-        int bytes_read;
+        size_t bytes_read;
 
         if(first) {
             first = 0;
