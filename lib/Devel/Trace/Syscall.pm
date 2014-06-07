@@ -104,10 +104,6 @@ Linux-only for now.  Patches to add support for other operating systems are welc
 
 =item *
 
-Using C<no Devel::Trace::Syscall> won't turn this off.  It's a one-way ticket.
-
-=item *
-
 System calls happening at global destruction time might be interesting.
 
 =item *
