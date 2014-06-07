@@ -8,12 +8,51 @@ use warnings;
 use Carp ();
 use XSLoader;
 
-XSLoader::load(__PACKAGE__, $Devel::Trace::Syscall::VERSION || '0');
+BEGIN { # must happen at BEGIN time so that flush_events is available to DB::sub
+    XSLoader::load(__PACKAGE__, $Devel::Trace::Syscall::VERSION || '0');
+}
 
-my $previous_trace = " (BEGIN)\n";
-sub DB::DB {
-    flush_events($previous_trace);
-    $previous_trace = Carp::longmess('');
+package
+DB;
+
+no strict qw(vars);
+
+our $previous_trace = " (BEGIN)\n";
+my $grabbing_traceback;
+sub DB {
+    my ( undef, $file, $line ) = caller;
+    Devel::Trace::Syscall::flush_events($previous_trace);
+    $grabbing_traceback = 1;
+    $previous_trace     = Carp::longmess('');
+    $grabbing_traceback = 0;
+}
+
+$deep = 100;
+sub sub {
+    no strict qw(refs);
+
+    if($grabbing_traceback) {
+        return &$sub;
+    }
+
+    my $return_value;
+
+    local $previous_trace = $previous_trace;
+
+    if(wantarray) {
+        $return_value = [ &$sub ];
+    } elsif(defined wantarray) {
+        $return_value = &$sub;
+    } else {
+        &$sub;
+    }
+    Devel::Trace::Syscall::flush_events($previous_trace);
+
+    if(wantarray) {
+        return @$return_value;
+    } elsif(defined wantarray) {
+        return $return_value;
+    }
 }
 
 1;
