@@ -8,7 +8,7 @@ sub MY::postamble {
 syscalls.gperf:
 	$^X generate-syscalls-gperf.pl > \$@
 
-syscall-hash.h: syscalls.gperf
+syscall-lookup.h: syscalls.gperf
 	gperf --output-file=\$@ \$^
 END_MAKE
 }
@@ -25,9 +25,9 @@ WriteMakefile(
     OBJECT         => '$(O_FILES)',
     CCFLAGS        => '-Wall -Wextra',
     depend         => {
-        'Syscall.o' => 'syscall-hash.h',
+        'Syscall.o' => 'syscall-lookup.h',
     },
     clean => {
-        FILES => 'syscalls.gperf syscall-hash.h',
+        FILES => 'syscalls.gperf syscall-lookup.h',
     },
 );

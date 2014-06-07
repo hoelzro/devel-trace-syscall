@@ -10,7 +10,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "syscall-hash.h"
+#include "syscall-lookup.h"
 #include "syscall-info.h"
 
 #define WORD_SIZE (sizeof(void *))
