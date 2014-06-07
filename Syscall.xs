@@ -729,3 +729,7 @@ flush_events(SV *trace)
             }
             is_flushing = 0;
         }
+
+BOOT:
+        CV *flush_events = get_cv("Devel::Trace::Syscall::flush_events", 0);
+        CvNODEBUG_on(flush_events);
