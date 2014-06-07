@@ -23,11 +23,26 @@
 # define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap)
 #endif
 
+// a flag that indicates in the child process whether or not a system call
+// that we care about has occurred.  The parent sets this via ptrace
 static int syscall_occurred __attribute__((aligned (WORD_SIZE))) = 0;
+
+// a flag that indicates whether or not the child is flushing its event
+// stream.  This is used so that system calls related to the behavior
+// of this module don't pollute the event stream
 static int is_flushing __attribute__((aligned (WORD_SIZE))) = 0;
+
+// a pair of pipe file descriptors.  channel[0] corresponds to the read
+// end (belonging to the child), channel[1] corresponds to the write end
+// (belonging to the parent).  The parent sends information about the
+// system calls invoked to the child via this pipe
 static int channel[2];
+
+// a lookup table indicating whether or not we care about a particular
+// system call.
 static int watching_syscall[MAX_SYSCALL_NO + 1];
 
+// a lookup table that describes the arguments to a particular system call
 static const char *SYSCALL_ARGS[MAX_SYSCALL_NO + 1];
 
 #if HAS_PROCESS_VM_READV
