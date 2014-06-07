@@ -120,6 +120,11 @@ with C<-d:Trace::Syscall>.
 
 You can't monitor C<exit>/C<exit_group>.
 
+=item *
+
+If you're monitoring C<open>, you may see some locale data get loaded shortly after your first
+system call.  This is due to some behavior in L<Carp>.
+
 =back
 
 =head1 FUTURE IDEAS
