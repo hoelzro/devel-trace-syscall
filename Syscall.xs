@@ -23,7 +23,7 @@
 # define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap)
 #endif
 
-static int my_custom_signal __attribute__((aligned (WORD_SIZE))) = 0;
+static int syscall_occurred __attribute__((aligned (WORD_SIZE))) = 0;
 static int is_flushing __attribute__((aligned (WORD_SIZE))) = 0;
 static int channel[2];
 static int watching_syscall[MAX_SYSCALL_NO + 1];
@@ -155,7 +155,7 @@ handle_syscall_enter(pid_t child)
             }
         }
 
-        ptrace(PTRACE_POKEDATA, child, (void *) &my_custom_signal, 1);
+        ptrace(PTRACE_POKEDATA, child, (void *) &syscall_occurred, 1);
         write(channel[1], &info.syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
 
         send_args(child, channel[1], &info);
@@ -675,11 +675,11 @@ flush_events(SV *trace)
         if(fp == NULL && channel[0] != 0) {
             fp = fdopen(channel[0], "r");
         }
-        if(UNLIKELY(my_custom_signal)) {
+        if(UNLIKELY(syscall_occurred)) {
             char *trace_chars = SvPVutf8_nolen(trace);
             uint16_t syscall_no;
 
-            my_custom_signal = 0;
+            syscall_occurred = 0;
             is_flushing      = 1;
 
             while(fread(&syscall_no, sizeof(uint16_t), 1, fp) > 0) {
