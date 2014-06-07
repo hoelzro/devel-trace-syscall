@@ -627,8 +627,8 @@ import(...)
 
         memset(watching_syscall, 0, sizeof(watching_syscall));
         for(i = 1; i < items; i++) {
-            const char *syscall_name   = SvPVutf8_nolen(ST(i));
-            const struct syscall *info = syscall_lookup(syscall_name, strlen(syscall_name));
+            const char *syscall_name            = SvPVutf8_nolen(ST(i));
+            const struct syscall_name_num *info = syscall_lookup(syscall_name, strlen(syscall_name));
 
             if(info) {
                 if(info->syscall_no == __NR_brk) {

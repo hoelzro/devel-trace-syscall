@@ -20,7 +20,7 @@ static const char *syscall_names[] = {
 };
 %}
 
-struct syscall {
+struct syscall_name_num {
     const char *name;
     int syscall_no;
 };
