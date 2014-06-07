@@ -23,9 +23,6 @@
 # define SYSCALL_IS_MMAP(value) ((value) == __NR_mmap)
 #endif
 
-// XXX error handling
-// XXX check that ptrace functions all work as intended during configure
-
 static int my_custom_signal __attribute__((aligned (WORD_SIZE))) = 0;
 static int is_flushing __attribute__((aligned (WORD_SIZE))) = 0;
 static int channel[2];
