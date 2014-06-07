@@ -6,6 +6,7 @@ use File::Temp;
 my $GPERF_TEMPLATE = <<'END_GPERF';
 %define hash-function-name   syscall_hash
 %define lookup-function-name syscall_lookup
+%define initializer-suffix   ,0
 %readonly-tables
 %struct-type
 
