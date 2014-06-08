@@ -13,6 +13,10 @@
 #include "syscall-lookup.h"
 #include "syscall-info.h"
 
+#define OK        0
+#define FATAL     -1
+#define PIPE_FULL -2
+
 #define WORD_SIZE (sizeof(void *))
 #define WORD_ALIGNED(p)\
     ((void *) (((unsigned long long)p) & (0xFFFFFFFFFFFFFFFF & ~(WORD_SIZE - 1))))
@@ -44,6 +48,17 @@ static int watching_syscall[MAX_SYSCALL_NO + 1];
 
 // a lookup table that describes the arguments to a particular system call
 static const char *SYSCALL_ARGS[MAX_SYSCALL_NO + 1];
+
+static int
+report_fatal_error(void)
+{
+    if(errno == EPIPE) {
+        warn("We can no longer communicate with the child; bailing!");
+    } else {
+        warn("A logic error occurred in Devel::Trace::Syscall: %s", strerror(errno));
+    }
+    return FATAL;
+}
 
 #if HAS_PROCESS_VM_READV
 static int
@@ -97,14 +112,14 @@ pmemcpy(void *dst, size_t size, pid_t child, void *addr)
 }
 #endif
 
-static void
+static int
 send_args(pid_t child, int fd, struct syscall_info *info)
 {
     const char *arg = SYSCALL_ARGS[info->syscall_no];
     int arg_idx = 0;
 
     if(! arg) {
-        return;
+        return OK;
     }
 
     while(*arg) {
@@ -116,16 +131,49 @@ send_args(pid_t child, int fd, struct syscall_info *info)
 
                     while(1) {
                         char *end_p;
-                        pmemcpy(buffer, 64, child, child_p);
+                        int to_write;
+                        size_t offset = 0;
+                        int status;
+                        ssize_t bytes_written;
+
+                        status = pmemcpy(buffer, 64, child, child_p);
+
+                        if(status < 0) {
+                            if(errno == EFAULT || errno == EIO) {
+                                // this memory is inaccessible, so let's feed the
+                                // child something digestable
+                                strcpy(buffer, "<unable to access>");
+                            } else {
+                                return report_fatal_error();
+                            }
+                        }
 
                         end_p = memchr(buffer, 0, 64);
 
                         if(end_p) {
-                            write(fd, buffer, (end_p - buffer) + 1);
-                            break;
+                            to_write = (end_p - buffer) + 1;
                         } else {
-                            write(fd, buffer, 64);
+                            to_write = 64;
                             child_p += 64;
+                        }
+                        while(to_write > 0) {
+                            bytes_written = (int) write(fd, buffer + offset, to_write);
+
+                            if(bytes_written >= 0) {
+                                to_write -= bytes_written;
+                                offset   += bytes_written;
+                            } else {
+                                if(errno == EAGAIN) {
+                                    return PIPE_FULL;
+                                } else if(errno != EINTR) {
+                                    return report_fatal_error();
+                                }
+                            }
+
+                        }
+
+                        if(end_p) {
+                            break;
                         }
                     }
                 }
@@ -135,11 +183,24 @@ send_args(pid_t child, int fd, struct syscall_info *info)
             case 'p': // pointer
             case 'o': // unsigned int (formatted in octal)
             case 'x': // unsigned int (formatted in hex)
-                write(fd, &info->args[arg_idx++], sizeof(info->args[0]));
+                while(1) {
+                    ssize_t bytes_written = write(fd, &info->args[arg_idx++], sizeof(info->args[0]));
+                    if(bytes_written < ((ssize_t) sizeof(info->args[0]))) {
+                        if(errno == EAGAIN) {
+                            return PIPE_FULL;
+                        } else if(errno != EINTR) {
+                            return report_fatal_error();
+                        }
+                        // otherwise, it's EINTR and we try again
+                    } else {
+                        break;
+                    }
+                }
                 break;
         }
         arg++;
     }
+    return OK;
 }
 
 static int
@@ -147,79 +208,149 @@ handle_syscall_enter(pid_t child)
 {
     struct user userdata;
     struct syscall_info info;
+    int status;
+    ssize_t bytes_written;
 
 #if __sparc__
-    ptrace(PTRACE_GETREGS, child, &userdata, 0);
+    status = ptrace(PTRACE_GETREGS, child, &userdata, 0);
 #else
-    ptrace(PTRACE_GETREGS, child, 0, &userdata);
+    status = ptrace(PTRACE_GETREGS, child, 0, &userdata);
 #endif
+    if(status == -1) {
+        return report_fatal_error();
+    }
     syscall_info_from_user(&userdata, &info);
 
     if(watching_syscall[info.syscall_no]) {
         if(info.syscall_no == __NR_write) {
             long child_is_flushing = ptrace(PTRACE_PEEKDATA, child, (void *) &is_flushing, 0);
 
+            if(child_is_flushing == -1) {
+                return report_fatal_error();
+            }
+
             if(child_is_flushing) {
-                return 0;
+                return OK;
             }
         } else if(info.syscall_no == __NR_read && info.args[0] == channel[0]) {
-            return 0;
+            return OK;
         } else if(SYSCALL_IS_MMAP(info.syscall_no)) {
             if( ((int) info.args[4]) == -1) {
-                return 0;
+                return OK;
             }
         }
 
-        ptrace(PTRACE_POKEDATA, child, (void *) &syscall_occurred, 1);
-        write(channel[1], &info.syscall_no, sizeof(uint16_t)); // XXX error checking, chance of EPIPE?
+        status = ptrace(PTRACE_POKEDATA, child, (void *) &syscall_occurred, 1);
+        if(status == -1) {
+            return report_fatal_error();
+        }
 
-        send_args(child, channel[1], &info);
+        bytes_written = write(channel[1], &info.syscall_no, sizeof(uint16_t));
+        // XXX handle EINTR
+
+        if(bytes_written < 0) {
+            if(errno == EAGAIN) {
+                // XXX print message, set flag
+                return 1;
+            } else if(errno == EPIPE) {
+                return report_fatal_error();
+            } else if(errno != EINTR) {
+                return report_fatal_error();
+            }
+        }
+
+        status = send_args(child, channel[1], &info);
+        if(status != OK) {
+            return status;
+        }
         return 1;
     }
-    return 0;
+    return OK;
 }
 
-static void
+static int
 handle_syscall_exit(pid_t child, int handled_previous_enter)
 {
     if(handled_previous_enter) {
         struct user userdata;
         struct syscall_info info;
+        int status;
 
 #if __sparc__
-        ptrace(PTRACE_GETREGS, child, &userdata, 0);
+        status = ptrace(PTRACE_GETREGS, child, &userdata, 0);
 #else
-        ptrace(PTRACE_GETREGS, child, 0, &userdata);
+        status = ptrace(PTRACE_GETREGS, child, 0, &userdata);
 #endif
+        if(status == -1) {
+            return report_fatal_error();
+        }
         syscall_info_from_user(&userdata, &info);
 
-        write(channel[1], &info.return_value, sizeof(int)); // XXX error checking, chance of EPIPE?
+        while(1) {
+            ssize_t bytes_written = write(channel[1], &info.return_value, sizeof(int));
+
+            if(bytes_written < ((ssize_t) sizeof(int))) {
+                if(errno == EAGAIN) {
+                    // XXX print message; set flag
+                    return OK;
+                } else if(errno != EINTR) {
+                    return report_fatal_error();
+                }
+                // otherwise, it's EINTR and we try again
+            } else {
+                break;
+            }
+        }
     }
+    return OK;
 }
 
-static void
+static int
 run_parent(pid_t child)
 {
-    int status;
+    int status = -1;
     int enter = 1;
     int handled_previous_enter;
 
-    waitpid(child, &status, 0);
+    while(status == -1) {
+        status = waitpid(child, &status, 0);
 
-    ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACESYSGOOD);
-    ptrace(PTRACE_SYSCALL, child, 0, 0);
+        if(status == -1 && errno != EINTR) {
+            return report_fatal_error();
+        }
+    }
+
+    status = ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACESYSGOOD);
+    if(status == -1) {
+        return report_fatal_error();
+    }
+    status = ptrace(PTRACE_SYSCALL, child, 0, 0);
+    if(status == -1) {
+        return report_fatal_error();
+    }
 
     while(waitpid(child, &status, 0) >= 0) {
         if(WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80)) {
             if(enter) {
                 handled_previous_enter = handle_syscall_enter(child);
+                if(handled_previous_enter == FATAL) {
+                    return FATAL;
+                }
             } else {
-                handle_syscall_exit(child, handled_previous_enter);
+                status = handle_syscall_exit(child, handled_previous_enter);
+                if(status == FATAL) {
+                    return FATAL;
+                }
             }
             enter = !enter;
         }
-        ptrace(PTRACE_SYSCALL, child, 0, 0);
+        status = ptrace(PTRACE_SYSCALL, child, 0, 0);
+        if(status == -1) {
+            return report_fatal_error();
+        }
     }
+    // XXX distinguish whether it was normal exit or not
+    return OK;
 }
 
 static void
@@ -246,7 +377,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             char c;
             fprintf(stderr, "\"");
             while((c = fgetc(fp)) != '\0') {
-                if(c == EOF) {
+                if(c == EOF) { // XXX EINTR?
                     goto short_read;
                 }
                 fputc(c, stderr);
@@ -257,7 +388,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
 
             unsigned long long arg_value;
             bytes_read = fread(&arg_value, 1, WORD_SIZE, fp);
-            if(bytes_read < WORD_SIZE) {
+            if(bytes_read < WORD_SIZE) { // XXX EINTR?
                 goto short_read;
             }
 
@@ -285,7 +416,7 @@ read_return_value(FILE *fp)
 {
     int return_value;
 
-    fread(&return_value, 1, sizeof(int), fp);
+    fread(&return_value, 1, sizeof(int), fp); // XXX short or interrupted read
 
     return (int) return_value;
 }
@@ -608,6 +739,7 @@ void
 import(...)
     INIT:
         int i;
+        int status;
         pid_t child;
     CODE:
     {
@@ -637,17 +769,27 @@ import(...)
             croak("you must provide at least one system call to monitor");
         }
 
-        pipe(channel);
+        status = pipe(channel);
+
+        if(status == -1) {
+            croak("failed to create pipe: %s\n", strerror(errno));
+        }
+
         child = fork();
 
         if(child == -1) {
-            croak("failed to fork!"); // XXX reason
+            croak("failed to fork: %s", strerror(errno));
         }
 
         if(child) {
+            int status;
             close(channel[0]);
             fcntl(channel[1], F_SETFL, O_NONBLOCK);
-            run_parent(child);
+            status = run_parent(child);
+
+            if(status < 0) {
+                my_exit(1);
+            }
             my_exit(0);
         } else {
             close(channel[1]);
@@ -673,7 +815,7 @@ flush_events(SV *trace)
             syscall_occurred = 0;
             is_flushing      = 1;
 
-            while(fread(&syscall_no, sizeof(uint16_t), 1, fp) > 0) {
+            while(fread(&syscall_no, sizeof(uint16_t), 1, fp) > 0) { // XXX EINTR
                 fprintf(stderr, "%s(", syscall_names[syscall_no]);
                 read_and_print_args(fp, syscall_no);
                 fprintf(stderr, ") = %d%s", read_return_value(fp), trace_chars);
