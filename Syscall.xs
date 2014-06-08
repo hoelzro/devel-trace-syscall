@@ -49,13 +49,14 @@ static int watching_syscall[MAX_SYSCALL_NO + 1];
 // a lookup table that describes the arguments to a particular system call
 static const char *SYSCALL_ARGS[MAX_SYSCALL_NO + 1];
 
+#define report_fatal_error() _report_fatal_error(__FILE__, __LINE__)
 static int
-report_fatal_error(void)
+_report_fatal_error(const char *filename, int line_no)
 {
     if(errno == EPIPE) {
-        warn("We can no longer communicate with the child; bailing!");
+        warn("%s:%d: We can no longer communicate with the child; bailing!", filename, line_no);
     } else {
-        warn("A logic error occurred in Devel::Trace::Syscall: %s", strerror(errno));
+        warn("%s:%d: A logic error occurred in Devel::Trace::Syscall: %s", filename, line_no, strerror(errno));
     }
     return FATAL;
 }
