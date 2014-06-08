@@ -243,37 +243,13 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
         }
 
         if(*arg == 'z') {
-            char *end_p;
-            char buffer[64];
-            int i;
-
+            char c;
             fprintf(stderr, "\"");
-            while(1) {
-                bytes_read = 0;
-                for(i = 0; i < 64; i++) {
-                    buffer[i] = fgetc(fp);
-
-                    if(buffer[i] == EOF) {
-                        break;
-                    } else if(buffer[i] == '\0') {
-                        bytes_read++;
-                        break;
-                    }
-                    bytes_read++;
-                }
-
-                if(bytes_read != 64 && buffer[i] != '\0') {
+            while((c = fgetc(fp)) != '\0') {
+                if(c == EOF) {
                     goto short_read;
                 }
-
-                end_p = memchr(buffer, 0, 64);
-
-                if(end_p) {
-                    fwrite(buffer, 1, end_p - buffer, stderr);
-                    break;
-                } else {
-                    fwrite(buffer, 1, 64, stderr);
-                }
+                fputc(c, stderr);
             }
             fprintf(stderr, "\"");
         } else {
