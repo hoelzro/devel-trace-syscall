@@ -321,7 +321,7 @@ run_parent(pid_t child)
         }
     }
 
-    status = ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACESYSGOOD);
+    status = ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEEXIT | PTRACE_O_TRACESYSGOOD);
     if(status == -1) {
         return report_fatal_error();
     }
@@ -344,6 +344,8 @@ run_parent(pid_t child)
                 }
             }
             enter = !enter;
+        } else if((status >> 8) == (SIGTRAP | PTRACE_EVENT_EXIT << 8)) {
+            break;
         }
         status = ptrace(PTRACE_SYSCALL, child, 0, 0);
         if(status == -1) {
