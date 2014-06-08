@@ -29,7 +29,7 @@
 
 // a flag that indicates in the child process whether or not a system call
 // that we care about has occurred.  The parent sets this via ptrace
-static int syscall_occurred __attribute__((aligned (WORD_SIZE))) = 0;
+static volatile int syscall_occurred __attribute__((aligned (WORD_SIZE))) = 0;
 
 // a flag that indicates whether or not the child is flushing its event
 // stream.  This is used so that system calls related to the behavior
