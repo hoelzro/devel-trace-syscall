@@ -61,6 +61,30 @@ _report_fatal_error(const char *filename, int line_no)
     return FATAL;
 }
 
+// writes count bytes of buffer or dies trying.  Handles short writes
+// and EINTR, exiting if any other type of error occurs
+static int
+stubborn_write(int fd, const void *buffer, size_t count)
+{
+    size_t total_written = 0;
+    ssize_t bytes_written;
+    size_t offset = 0;
+
+    while(total_written < count) {
+        bytes_written = write(fd, buffer + offset, count - total_written);
+
+        if(bytes_written < 0) {
+            if(errno != EINTR) {
+                return -1;
+            }
+        } else {
+            offset        += bytes_written;
+            total_written += bytes_written;
+        }
+    }
+    return count;
+}
+
 #if HAS_PROCESS_VM_READV
 static int
 pmemcpy(void *dst, size_t size, pid_t child, void *addr)
@@ -118,6 +142,7 @@ send_args(pid_t child, int fd, struct syscall_info *info)
 {
     const char *arg = SYSCALL_ARGS[info->syscall_no];
     int arg_idx = 0;
+    int status;
 
     if(! arg) {
         return OK;
@@ -132,10 +157,6 @@ send_args(pid_t child, int fd, struct syscall_info *info)
 
                     while(1) {
                         char *end_p;
-                        int to_write;
-                        size_t offset = 0;
-                        int status;
-                        ssize_t bytes_written;
 
                         status = pmemcpy(buffer, 64, child, child_p);
 
@@ -152,25 +173,17 @@ send_args(pid_t child, int fd, struct syscall_info *info)
                         end_p = memchr(buffer, 0, 64);
 
                         if(end_p) {
-                            to_write = (end_p - buffer) + 1;
+                            status = stubborn_write(fd, buffer, (end_p - buffer) + 1);
                         } else {
-                            to_write = 64;
+                            status = stubborn_write(fd, buffer, 64);
                             child_p += 64;
                         }
-                        while(to_write > 0) {
-                            bytes_written = (int) write(fd, buffer + offset, to_write);
-
-                            if(bytes_written >= 0) {
-                                to_write -= bytes_written;
-                                offset   += bytes_written;
+                        if(status < 0) {
+                            if(errno == EAGAIN) {
+                                return PIPE_FULL;
                             } else {
-                                if(errno == EAGAIN) {
-                                    return PIPE_FULL;
-                                } else if(errno != EINTR) {
-                                    return report_fatal_error();
-                                }
+                                return report_fatal_error();
                             }
-
                         }
 
                         if(end_p) {
@@ -184,17 +197,12 @@ send_args(pid_t child, int fd, struct syscall_info *info)
             case 'p': // pointer
             case 'o': // unsigned int (formatted in octal)
             case 'x': // unsigned int (formatted in hex)
-                while(1) {
-                    ssize_t bytes_written = write(fd, &info->args[arg_idx++], sizeof(info->args[0]));
-                    if(bytes_written < ((ssize_t) sizeof(info->args[0]))) {
-                        if(errno == EAGAIN) {
-                            return PIPE_FULL;
-                        } else if(errno != EINTR) {
-                            return report_fatal_error();
-                        }
-                        // otherwise, it's EINTR and we try again
-                    } else {
-                        break;
+                status = stubborn_write(fd, &info->args[arg_idx++], sizeof(info->args[0]));
+                if(status < 0) {
+                    if(errno == EAGAIN) {
+                        return PIPE_FULL;
+                    } else if(errno != EINTR) {
+                        return report_fatal_error();
                     }
                 }
                 break;
@@ -210,7 +218,6 @@ handle_syscall_enter(pid_t child)
     struct user userdata;
     struct syscall_info info;
     int status;
-    ssize_t bytes_written;
 
 #if __sparc__
     status = ptrace(PTRACE_GETREGS, child, &userdata, 0);
@@ -246,15 +253,12 @@ handle_syscall_enter(pid_t child)
             return report_fatal_error();
         }
 
-        bytes_written = write(channel[1], &info.syscall_no, sizeof(uint16_t));
-        // XXX handle EINTR
+        status = stubborn_write(channel[1], &info.syscall_no, sizeof(uint16_t));
 
-        if(bytes_written < 0) {
+        if(status < 0) {
             if(errno == EAGAIN) {
                 // XXX print message, set flag
                 return 1;
-            } else if(errno == EPIPE) {
-                return report_fatal_error();
             } else if(errno != EINTR) {
                 return report_fatal_error();
             }
@@ -287,19 +291,13 @@ handle_syscall_exit(pid_t child, int handled_previous_enter)
         }
         syscall_info_from_user(&userdata, &info);
 
-        while(1) {
-            ssize_t bytes_written = write(channel[1], &info.return_value, sizeof(int));
-
-            if(bytes_written < ((ssize_t) sizeof(int))) {
-                if(errno == EAGAIN) {
-                    // XXX print message; set flag
-                    return OK;
-                } else if(errno != EINTR) {
-                    return report_fatal_error();
-                }
-                // otherwise, it's EINTR and we try again
-            } else {
-                break;
+        status = stubborn_write(channel[1], &info.return_value, sizeof(int));
+        if(status < 0) {
+            if(errno == EAGAIN) {
+                // XXX print message; set flag
+                return OK;
+            } else if(errno != EINTR) {
+                return report_fatal_error();
             }
         }
     }
