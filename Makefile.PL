@@ -23,7 +23,7 @@ WriteMakefile(
     DEFINE         => '',
     INC            => '-I.',
     OBJECT         => '$(O_FILES)',
-    CCFLAGS        => '-Wall -Wextra',
+    CCFLAGS        => '-Wall -Wextra -Werror',
     depend         => {
         'Syscall.o' => 'syscall-lookup.h',
     },
