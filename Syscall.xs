@@ -107,6 +107,21 @@ stubborn_fread(void *buffer, size_t count, FILE *fp)
     return count;
 }
 
+static char
+stubborn_fgetc(FILE *fp)
+{
+    char c;
+    int status;
+
+    status = stubborn_fread(&c, 1, fp);
+
+    if(status == -1) {
+        return EOF;
+    }
+
+    return c;
+}
+
 #if HAS_PROCESS_VM_READV
 static int
 pmemcpy(void *dst, size_t size, pid_t child, void *addr)
@@ -397,8 +412,9 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
         if(*arg == 'z') {
             char c;
             fprintf(stderr, "\"");
-            while((c = fgetc(fp)) != '\0') {
-                if(c == EOF) { // XXX EINTR?
+            while((c = stubborn_fgetc(fp)) != '\0') {
+                if(c == EOF) {
+                    // XXX EOF or error
                     goto short_read;
                 }
                 fputc(c, stderr);
