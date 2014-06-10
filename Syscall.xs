@@ -302,7 +302,9 @@ handle_syscall_enter(pid_t child)
         }
 
         status = send_args(child, channel[1], &info);
-        if(status != OK) {
+        if(status == PIPE_FULL) {
+            // XXX print message, set flag
+        } else if(status != OK) {
             return status;
         }
         return 1;
