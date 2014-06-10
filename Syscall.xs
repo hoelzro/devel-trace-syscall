@@ -85,6 +85,28 @@ stubborn_write(int fd, const void *buffer, size_t count)
     return count;
 }
 
+// reads count bytes from fp into buffer or dies trying.  See stubborn_write
+static int
+stubborn_fread(void *buffer, size_t count, FILE *fp)
+{
+    size_t total_read = 0;
+    size_t offset     = 0;
+
+    while(total_read < count) {
+        size_t bytes_read = fread(buffer + offset, 1, count - total_read, fp);
+
+        total_read += bytes_read;
+        offset     += bytes_read;
+
+        if(bytes_read < (count - total_read)) {
+            if(!ferror(fp) || errno != EINTR) {
+                return -1;
+            }
+        }
+    }
+    return count;
+}
+
 #if HAS_PROCESS_VM_READV
 static int
 pmemcpy(void *dst, size_t size, pid_t child, void *addr)
@@ -366,8 +388,6 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
     }
 
     while(*arg) {
-        size_t bytes_read;
-
         if(first) {
             first = 0;
         } else {
@@ -388,9 +408,13 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             const char *format_string = "";
 
             unsigned long long arg_value;
-            bytes_read = fread(&arg_value, 1, WORD_SIZE, fp);
-            if(bytes_read < WORD_SIZE) { // XXX EINTR?
-                goto short_read;
+            int status = stubborn_fread(&arg_value, WORD_SIZE, fp);
+            if(status == -1) {
+                if(errno == EAGAIN) {
+                    goto short_read;
+                } else {
+                    // XXX something really bad
+                }
             }
 
             switch(*arg) {
