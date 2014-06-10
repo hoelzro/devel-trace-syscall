@@ -50,6 +50,8 @@ static int watching_syscall[MAX_SYSCALL_NO + 1];
 // a lookup table that describes the arguments to a particular system call
 static const char *SYSCALL_ARGS[MAX_SYSCALL_NO + 1];
 
+// this routine should only be called after calling a system call that
+// can fail; other calls should assume that the callee has already called report_fatal_error
 #define report_fatal_error() _report_fatal_error(__FILE__, __LINE__)
 static int
 _report_fatal_error(const char *filename, int line_no)
@@ -836,7 +838,7 @@ import(...)
 void
 flush_events(SV *trace)
     CODE:
-        static FILE *fp = NULL;
+        static FILE *fp = NULL; // we use stdio for buffering for the child's reads
 
         if(fp == NULL && channel[0] != 0) {
             fp = fdopen(channel[0], "r");
