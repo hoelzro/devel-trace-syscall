@@ -454,25 +454,6 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
     return OK;
 }
 
-static int
-read_return_value(FILE *fp)
-{
-    int status;
-    int return_value;
-
-    status = stubborn_fread(&return_value, sizeof(int), fp);
-
-    if(status == -1) {
-        if(errno == EAGAIN) {
-            return PIPE_EMPTY;
-        } else {
-            return report_fatal_error();
-        }
-    }
-
-    return return_value;
-}
-
 static void
 init_syscall_args(void)
 {
