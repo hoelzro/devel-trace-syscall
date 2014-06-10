@@ -13,9 +13,10 @@
 #include "syscall-lookup.h"
 #include "syscall-info.h"
 
-#define OK        0
-#define FATAL     -1
-#define PIPE_FULL -2
+#define OK         0
+#define FATAL      -1
+#define PIPE_FULL  -2
+#define PIPE_EMPTY -3
 
 #define WORD_SIZE (sizeof(void *))
 #define WORD_ALIGNED(p)\
@@ -393,7 +394,7 @@ run_parent(pid_t child)
     return OK;
 }
 
-static void
+static int
 read_and_print_args(FILE *fp, uint16_t syscall_no)
 {
     const char *arg = SYSCALL_ARGS[syscall_no];
@@ -416,8 +417,11 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             fprintf(stderr, "\"");
             while((c = stubborn_fgetc(fp)) != '\0') {
                 if(c == EOF) {
-                    // XXX EOF or error
-                    goto short_read;
+                    if(errno == EAGAIN) {
+                        return PIPE_EMPTY;
+                    } else {
+                        return report_fatal_error();
+                    }
                 }
                 fputc(c, stderr);
             }
@@ -429,9 +433,9 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             int status = stubborn_fread(&arg_value, WORD_SIZE, fp);
             if(status == -1) {
                 if(errno == EAGAIN) {
-                    goto short_read;
+                    return PIPE_EMPTY;
                 } else {
-                    // XXX something really bad
+                    return report_fatal_error();
                 }
             }
 
@@ -447,11 +451,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
 
         arg++;
     }
-    return;
-
-short_read:
-    fprintf(stderr, "short read on IPC pipe\n");
-    return;
+    return OK;
 }
 
 static int
@@ -464,9 +464,9 @@ read_return_value(FILE *fp)
 
     if(status == -1) {
         if(errno == EAGAIN) {
-            // XXX handle short read
+            return PIPE_EMPTY;
         } else {
-            // XXX handle something really bad
+            return report_fatal_error();
         }
     }
 
