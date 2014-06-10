@@ -439,11 +439,20 @@ short_read:
 static int
 read_return_value(FILE *fp)
 {
+    int status;
     int return_value;
 
-    fread(&return_value, 1, sizeof(int), fp); // XXX short or interrupted read
+    status = stubborn_fread(&return_value, sizeof(int), fp);
 
-    return (int) return_value;
+    if(status == -1) {
+        if(errno == EAGAIN) {
+            // XXX handle short read
+        } else {
+            // XXX handle something really bad
+        }
+    }
+
+    return return_value;
 }
 
 static void
@@ -840,11 +849,12 @@ flush_events(SV *trace)
             syscall_occurred = 0;
             is_flushing      = 1;
 
-            while(fread(&syscall_no, sizeof(uint16_t), 1, fp) > 0) { // XXX EINTR
+            while(stubborn_fread(&syscall_no, sizeof(uint16_t), fp) > 0) {
                 fprintf(stderr, "%s(", syscall_names[syscall_no]);
-                read_and_print_args(fp, syscall_no);
+                read_and_print_args(fp, syscall_no); // XXX handle error
                 fprintf(stderr, ") = %d%s", read_return_value(fp), trace_chars);
             }
+            // XXX handle error
             is_flushing = 0;
         }
 
