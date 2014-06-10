@@ -402,7 +402,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
 
     if(! arg) {
         fprintf(stderr, "...");
-        return;
+        return OK;
     }
 
     while(*arg) {
