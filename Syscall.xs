@@ -863,16 +863,45 @@ flush_events(SV *trace)
         if(UNLIKELY(syscall_occurred)) {
             char *trace_chars = SvPVutf8_nolen(trace);
             uint16_t syscall_no;
+            int status;
 
             syscall_occurred = 0;
             is_flushing      = 1;
 
             while(stubborn_fread(&syscall_no, sizeof(uint16_t), fp) > 0) {
+                int return_value;
+
                 fprintf(stderr, "%s(", syscall_names[syscall_no]);
-                read_and_print_args(fp, syscall_no); // XXX handle error
-                fprintf(stderr, ") = %d%s", read_return_value(fp), trace_chars);
+                status = read_and_print_args(fp, syscall_no);
+                if(status < 0) {
+                    if(status == PIPE_EMPTY) {
+                        // XXX the pipe should only ever come up short if we overflowed
+                        clearerr(fp);
+                        errno = 0;
+                        fprintf(stderr, "...) = ?%s", trace_chars);
+                        break;
+                    } else { // FATAL
+                        exit(1);
+                    }
+                }
+                status = stubborn_fread(&return_value, sizeof(int), fp);
+                if(status < 0) {
+                    if(errno == EAGAIN) {
+                        // XXX the pipe should only ever come up short if we overflowed
+                        clearerr(fp);
+                        errno = 0;
+                        fprintf(stderr, ") = ?%s", trace_chars);
+                        break;
+                    } else { // FATAL
+                        report_fatal_error();
+                        exit(1);
+                    }
+                }
+                fprintf(stderr, ") = %d%s", return_value, trace_chars);
             }
-            // XXX handle error
+            if(ferror(fp) && errno != EAGAIN) {
+                report_fatal_error();
+            }
             is_flushing = 0;
         }
 
