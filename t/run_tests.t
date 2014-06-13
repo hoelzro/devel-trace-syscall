@@ -109,6 +109,7 @@ sub strip_unimportant_events {
 sub read_events_from_data {
     my ( $filename ) = @_;
 
+    my %metadata;
     my $in_data;
     my @lines;
     open my $fh, '<', $filename;
@@ -119,12 +120,16 @@ sub read_events_from_data {
         if($_ eq '__DATA__') {
             $in_data = 1;
         } elsif($in_data) {
-            push @lines, $_;
+            if(/^\s*#\s*(?<key>\w+)\s*:\s*(?<value>.*)\s*$/) {
+                $metadata{ $+{'key'} } = $+{'value'};
+            } else {
+                push @lines, $_;
+            }
         }
     }
 
     close $fh;
-    return parse_events(\@lines);
+    return ( \%metadata, parse_events(\@lines) );
 }
 
 chdir "$FindBin::Bin/../t_source";
@@ -135,10 +140,10 @@ plan tests => scalar(@test_files);
 $ENV{'PERL5LIB'} = '../blib/arch:../blib/lib';
 
 foreach my $filename (@test_files) {
+    my ( $metadata, $expected_events ) = read_events_from_data($filename);
     my $output_lines    = capture_trace_output($^X, '-d:Trace::Syscall=open', $filename);
     my $got_events      = parse_events($output_lines);
     $got_events         = strip_unimportant_events($got_events);
-    my $expected_events = read_events_from_data($filename);
 
     for(my $i = 0; $i < @$expected_events; $i++) {
         my $got      = $got_events->[$i];
