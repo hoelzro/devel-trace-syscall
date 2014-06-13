@@ -141,9 +141,10 @@ $ENV{'PERL5LIB'} = '../blib/arch:../blib/lib';
 
 foreach my $filename (@test_files) {
     my ( $metadata, $expected_events ) = read_events_from_data($filename);
-    my $output_lines    = capture_trace_output($^X, '-d:Trace::Syscall=open', $filename);
-    my $got_events      = parse_events($output_lines);
-    $got_events         = strip_unimportant_events($got_events);
+    my @args         = split(/\s*,\s*/, $metadata->{'args'} || 'open');
+    my $output_lines = capture_trace_output($^X, '-d:Trace::Syscall=' . join(',', @args), $filename);
+    my $got_events   = parse_events($output_lines);
+    $got_events      = strip_unimportant_events($got_events);
 
     for(my $i = 0; $i < @$expected_events; $i++) {
         my $got      = $got_events->[$i];
