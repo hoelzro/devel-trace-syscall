@@ -155,5 +155,8 @@ foreach my $filename (@test_files) {
         }
     }
 
-    eq_or_diff_data($got_events, $expected_events, "event streams for $filename should match");
+    SKIP: {
+        skip "$filename: $metadata->{'skip'}", 1 if $metadata->{'skip'};
+        eq_or_diff_data($got_events, $expected_events, "event streams for $filename should match");
+    }
 }
