@@ -18,6 +18,8 @@ my $LOCATION       = qr/.*/;
 sub capture_trace_output {
     my ( @command ) = @_;
 
+    note('running command: ' . join(' ', @command));
+
     my ( $read, $write );
     pipe $read, $write;
 
