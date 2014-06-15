@@ -146,6 +146,31 @@ sub read_events_from_data {
     return ( \%metadata, parse_events(\@lines) );
 }
 
+sub fill_in_wildcards {
+    my ( $expected, $got ) = @_;
+
+    for(my $i = 0; $i < @$expected; $i++) {
+        my $got      = $got->[$i];
+        my $expected = $expected->[$i];
+
+        if($expected->[0]{'result'} eq '*') {
+            delete $expected->[0]{'result'};
+            delete $got->[0]{'result'};
+        }
+
+        for my $frame_no (0 .. $#$expected) {
+            my $expected_frame = $expected->[$frame_no];
+            my $got_frame      = $got->[$frame_no];
+
+            for my $arg_no (0 .. $#{ $expected_frame->{'args'} }) {
+                if($expected_frame->{'args'}[$arg_no] eq '*') {
+                    $got_frame->{'args'}[$arg_no] = '*';
+                }
+            }
+        }
+    }
+}
+
 chdir "$FindBin::Bin/../t_source";
 my @test_files = glob("*.pl");
 
@@ -160,15 +185,7 @@ foreach my $filename (@test_files) {
     my $got_events   = parse_events($output_lines);
     $got_events      = strip_unimportant_events($got_events);
 
-    for(my $i = 0; $i < @$expected_events; $i++) {
-        my $got      = $got_events->[$i];
-        my $expected = $expected_events->[$i];
-
-        if($expected->[0]{'result'} eq '*') {
-            delete $expected->[0]{'result'};
-            delete $got->[0]{'result'};
-        }
-    }
+    fill_in_wildcards($expected_events, $got_events);
 
     SKIP: {
         skip "$filename: $metadata->{'skip'}", 1 if $metadata->{'skip'};
