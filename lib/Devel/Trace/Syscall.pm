@@ -125,6 +125,14 @@ You can't monitor C<exit>/C<exit_group>.
 If you're monitoring C<open>, you may see some locale data get loaded shortly after your first
 system call.  This is due to some behavior in L<Carp>.
 
+=item *
+
+Some Perl functions that make system calls (ex. C<write> called via
+C<print>/C<say>) use tricks like buffering to avoid repeated system calls,
+which may make it look like the writing is happening on a different line.  If
+you're interested in system calls like these, you may want to enable things
+like autoflush.
+
 =back
 
 =head1 FUTURE IDEAS
