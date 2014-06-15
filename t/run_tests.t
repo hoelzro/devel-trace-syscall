@@ -7,7 +7,19 @@ use feature qw(say);
 
 use FindBin;
 use Test::More;
-use Test::Differences;
+BEGIN {
+    my $pkg;
+
+    eval {
+        $pkg = 'Test::Differences::Color';
+        require Test::Differences::Color;
+    } or do {
+        $pkg = 'Test::Differences';
+        require Test::Differences;
+    };
+
+    $pkg->import;
+}
 
 my $INDENT         = qr/\s+/;
 my $SYSCALL_NAME   = qr/[a-zA-Z_:]+/;
@@ -160,6 +172,6 @@ foreach my $filename (@test_files) {
 
     SKIP: {
         skip "$filename: $metadata->{'skip'}", 1 if $metadata->{'skip'};
-        eq_or_diff_data($got_events, $expected_events, "event streams for $filename should match");
+        eq_or_diff($got_events, $expected_events, "event streams for $filename should match");
     }
 }
