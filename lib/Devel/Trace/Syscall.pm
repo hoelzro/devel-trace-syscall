@@ -147,7 +147,7 @@ Support for other operating systems
 
 =item *
 
-Report system call arguments
+Report arguments for more system calls, and improve how they are displayed
 
 =item *
 
