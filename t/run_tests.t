@@ -147,7 +147,23 @@ sub read_events_from_data {
 }
 
 sub fill_in_wildcards {
-    my ( $expected, $got ) = @_;
+    my ( $expected, $got, $extra ) = @_;
+
+    if($extra) {
+        my $i = 0;
+        my @new_got;
+        foreach my $event (@$expected) {
+            while($i < @$got) {
+                if($event->[0]{'location'}{'line'} == $got->[$i][0]{'location'}{'line'}) {
+                    push @new_got, $got->[$i];
+                    $i++;
+                    last;
+                }
+                $i++;
+            }
+        }
+        @$got = @new_got;
+    }
 
     for(my $i = 0; $i < @$expected; $i++) {
         my $got      = $got->[$i];
@@ -185,7 +201,7 @@ foreach my $filename (@test_files) {
     my $got_events   = parse_events($output_lines);
     $got_events      = strip_unimportant_events($got_events);
 
-    fill_in_wildcards($expected_events, $got_events);
+    fill_in_wildcards($expected_events, $got_events, $metadata->{'extra'});
 
     SKIP: {
         skip "$filename: $metadata->{'skip'}", 1 if $metadata->{'skip'};
