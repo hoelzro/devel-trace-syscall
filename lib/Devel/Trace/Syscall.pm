@@ -87,6 +87,11 @@ you specify is called.  How cool is that!
 
 =item *
 
+Events that happen during the C<BEGIN> phase of a program are ignored by default; if
+you want to see these events, add C<BEGIN { $DB::single = 1 }> to the beginning of your program.
+
+=item *
+
 I have no idea how this module behaves when there are multiple interpreters
 present in a single process, or in conjunction with threads.  It may work, it
 may blow your computer up, it may summon an army of squirrels to raid your kitchen.
