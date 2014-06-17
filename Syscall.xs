@@ -541,36 +541,44 @@ flush_events(SV *trace)
             syscall_occurred = 0;
             is_flushing      = 1;
 
-            while(stubborn_fread(&syscall_no, sizeof(uint16_t), fp) > 0) {
-                int return_value;
+            if(SvIV(PL_DBsingle)) {
+                while(stubborn_fread(&syscall_no, sizeof(uint16_t), fp) > 0) {
+                    int return_value;
 
-                fprintf(stderr, "%s(", syscall_names[syscall_no]);
-                status = read_and_print_args(fp, syscall_no);
-                if(status < 0) {
-                    if(status == PIPE_EMPTY) {
-                        // XXX the pipe should only ever come up short if we overflowed
-                        clearerr(fp);
-                        errno = 0;
-                        fprintf(stderr, "...) = ?%s", trace_chars);
-                        break;
-                    } else { // FATAL
-                        exit(1);
+                    fprintf(stderr, "%s(", syscall_names[syscall_no]);
+                    status = read_and_print_args(fp, syscall_no);
+                    if(status < 0) {
+                        if(status == PIPE_EMPTY) {
+                            // XXX the pipe should only ever come up short if we overflowed
+                            clearerr(fp);
+                            errno = 0;
+                            fprintf(stderr, "...) = ?%s", trace_chars);
+                            break;
+                        } else { // FATAL
+                            exit(1);
+                        }
                     }
-                }
-                status = stubborn_fread(&return_value, sizeof(int), fp);
-                if(status < 0) {
-                    if(errno == EAGAIN) {
-                        // XXX the pipe should only ever come up short if we overflowed
-                        clearerr(fp);
-                        errno = 0;
-                        fprintf(stderr, ") = ?%s", trace_chars);
-                        break;
-                    } else { // FATAL
-                        report_fatal_error();
-                        exit(1);
+                    status = stubborn_fread(&return_value, sizeof(int), fp);
+                    if(status < 0) {
+                        if(errno == EAGAIN) {
+                            // XXX the pipe should only ever come up short if we overflowed
+                            clearerr(fp);
+                            errno = 0;
+                            fprintf(stderr, ") = ?%s", trace_chars);
+                            break;
+                        } else { // FATAL
+                            report_fatal_error();
+                            exit(1);
+                        }
                     }
+                    fprintf(stderr, ") = %d%s", return_value, trace_chars);
                 }
-                fprintf(stderr, ") = %d%s", return_value, trace_chars);
+            } else {
+                char buffer[1024];
+
+                while(stubborn_fread(buffer, 1024, fp) > 0) {
+                    // just discard it
+                }
             }
             if(ferror(fp) && errno != EAGAIN) {
                 report_fatal_error();
