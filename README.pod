@@ -36,6 +36,11 @@ you specify is called.  How cool is that!
 
 =item *
 
+Events that happen during the C<BEGIN> phase of a program are ignored by default; if
+you want to see these events, add C<BEGIN { $DB::single = 1 }> to the beginning of your program.
+
+=item *
+
 I have no idea how this module behaves when there are multiple interpreters
 present in a single process, or in conjunction with threads.  It may work, it
 may blow your computer up, it may summon an army of squirrels to raid your kitchen.
@@ -53,10 +58,6 @@ Linux-only for now.  Patches to add support for other operating systems are welc
 
 =item *
 
-Using C<no Devel::Trace::Syscall> won't turn this off.  It's a one-way ticket.
-
-=item *
-
 System calls happening at global destruction time might be interesting.
 
 =item *
@@ -68,6 +69,23 @@ x86_64 only for now.  Patches to add support for other architectures are welcome
 There's no support for tracing grandchildren after a child C<fork()>s.  This is because
 we have no guarantee that the grandchild will even be a Perl process, let alone one run
 with C<-d:Trace::Syscall>.
+
+=item *
+
+You can't monitor C<exit>/C<exit_group>.
+
+=item *
+
+If you're monitoring C<open>, you may see some locale data get loaded shortly after your first
+system call.  This is due to some behavior in L<Carp>.
+
+=item *
+
+Some Perl functions that make system calls (ex. C<write> called via
+C<print>/C<say>) use tricks like buffering to avoid repeated system calls,
+which may make it look like the writing is happening on a different line.  If
+you're interested in system calls like these, you may want to enable things
+like autoflush.
 
 =back
 
@@ -83,7 +101,7 @@ Support for other operating systems
 
 =item *
 
-Report system call arguments
+Report arguments for more system calls, and improve how they are displayed
 
 =item *
 
