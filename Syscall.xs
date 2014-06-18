@@ -542,6 +542,7 @@ import(...)
         } else {
             close(channel[1]);
             fcntl(channel[0], F_SETFL, O_NONBLOCK);
+            fcntl(channel[0], F_SETFD, FD_CLOEXEC);
             ptrace(PTRACE_TRACEME, 0, 0, 0);
             raise(SIGTRAP);
             XSRETURN_UNDEF;
