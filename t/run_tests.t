@@ -104,6 +104,10 @@ sub parse_events {
                 args     => parse_args($args),
                 location => parse_location($location),
             };
+        } elsif($line =~ /bailing/) {
+            push @events, [{
+                bailing => 1,
+            }];
         } elsif($line !~ /^\s*$/) {
             die "Line '$line' did not match a known regex\n";
         }
@@ -116,7 +120,7 @@ sub strip_unimportant_events {
     my ( $events ) = @_;
 
     return [ grep {
-        $_->[0]{'name'} ne 'open' || ($_->[0]{'args'}[0] !~ m{/usr/share/} && $_->[0]{'args'}[0] !~ /[.]pm"$/)
+        $_->[0]{'bailing'} || $_->[0]{'name'} ne 'open' || ($_->[0]{'args'}[0] !~ m{/usr/share/} && $_->[0]{'args'}[0] !~ /[.]pm"$/)
     } @$events ];
 }
 
@@ -143,7 +147,15 @@ sub read_events_from_data {
     }
 
     close $fh;
-    return ( \%metadata, parse_events(\@lines) );
+    my $events = parse_events(\@lines);
+
+    if($metadata{'bailing'}) {
+        push @$events, [{
+            bailing => 1,
+        }];
+    }
+
+    return ( \%metadata, $events );
 }
 
 sub fill_in_wildcards {
@@ -168,6 +180,10 @@ sub fill_in_wildcards {
     for(my $i = 0; $i < @$expected; $i++) {
         my $got      = $got->[$i];
         my $expected = $expected->[$i];
+
+        if($expected->[0]{'bailing'}) {
+            next;
+        }
 
         if($expected->[0]{'result'} eq '*') {
             delete $expected->[0]{'result'};
