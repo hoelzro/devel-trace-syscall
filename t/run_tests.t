@@ -108,8 +108,6 @@ sub parse_events {
             push @events, [{
                 bailing => 1,
             }];
-        } elsif($line !~ /^\s*$/) {
-            die "Line '$line' did not match a known regex\n";
         }
     }
 
