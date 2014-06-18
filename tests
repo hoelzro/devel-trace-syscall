@@ -1,3 +1,2 @@
 - system call happening in a destructor
 - Mess up the file handles to test error handling
-- Exception events
