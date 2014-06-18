@@ -535,7 +535,7 @@ import(...)
             fcntl(channel[1], F_SETFL, O_NONBLOCK);
             status = run_parent(child);
 
-            if(status < 0) {
+            if(status < 0 && errno != EPIPE) {
                 my_exit(1);
             }
             my_exit(0);
