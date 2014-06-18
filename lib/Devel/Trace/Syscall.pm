@@ -8,6 +8,8 @@ use warnings;
 use Carp ();
 use XSLoader;
 
+my $parent_pid = $$;
+
 BEGIN { # must happen at BEGIN time so that flush_events is available to DB::sub
     XSLoader::load(__PACKAGE__, $Devel::Trace::Syscall::VERSION || '0');
 }
@@ -52,6 +54,12 @@ sub sub {
         return @$return_value;
     } elsif(defined wantarray) {
         return $return_value;
+    }
+}
+
+END {
+    if($$ != $parent_pid) {
+        Devel::Trace::Syscall::flush_events($previous_trace);
     }
 }
 
