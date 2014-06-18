@@ -415,7 +415,6 @@ run_parent(pid_t child, int *exit_code)
             return report_fatal_error();
         }
     }
-    // XXX distinguish whether it was normal exit or not
     return OK;
 }
 
@@ -498,22 +497,22 @@ import(...)
 
         memset(watching_syscall, 0, sizeof(watching_syscall));
         for(i = 1; i < items; i++) {
-            const char *syscall_name            = SvPVutf8_nolen(ST(i));
-            const struct syscall_name_num *info = syscall_lookup(syscall_name, strlen(syscall_name));
+            HE *entry = hv_fetch_ent(syscall_lookup, ST(i), 0, 0);
 
-            if(info) {
-                if(info->syscall_no == __NR_brk) {
+            if(entry) {
+                int syscall_no = SvIVx(HeVAL(entry));
+                if(syscall_no == __NR_brk) {
                     warn("*** Monitoring brk will likely result in a lot of events out of the control of your program due to memory allocation; disabling ***");
                     continue;
-                } else if(SYSCALL_IS_MMAP(info->syscall_no)) {
+                } else if(SYSCALL_IS_MMAP(syscall_no)) {
                     warn("*** Monitoring mmap will *not* list mmap calls that are made purely for memory allocation, considering this is out of the control of your program ***");
-                } else if(info->syscall_no == __NR_exit || info->syscall_no == __NR_exit_group) {
+                } else if(syscall_no == __NR_exit || syscall_no == __NR_exit_group) {
                     warn("*** Because of the way this module works, events for exit and exit_group will never appear. ***");
                     continue;
                 }
-                watching_syscall[info->syscall_no] = 1;
+                watching_syscall[syscall_no] = 1;
             } else {
-                croak("unknown syscall '%s'", syscall_name);
+                croak("unknown syscall '%s'", SvPVutf8_nolen(ST(i)));
             }
         }
         if(items <= 1) {

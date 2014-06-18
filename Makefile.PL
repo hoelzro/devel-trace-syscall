@@ -1,15 +1,10 @@
 use 5.008005;
 use ExtUtils::MakeMaker;
 
-# XXX check for gperf
-
 sub MY::postamble {
     return <<"END_MAKE";
-syscalls.gperf:
+syscall-lookup.h:
 	$^X generate-syscalls-gperf.pl > \$@
-
-syscall-lookup.h: syscalls.gperf
-	gperf --output-file=\$@ \$^
 END_MAKE
 }
 
@@ -28,6 +23,6 @@ WriteMakefile(
         'Syscall.o' => 'syscall-lookup.h',
     },
     clean => {
-        FILES => 'syscalls.gperf syscall-lookup.h',
+        FILES => 'syscall-lookup.h',
     },
 );

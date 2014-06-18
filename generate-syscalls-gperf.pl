@@ -310,13 +310,6 @@ my %FORMATS = (
 );
 
 my $GPERF_TEMPLATE = <<'END_GPERF';
-%define hash-function-name   syscall_hash
-%define lookup-function-name syscall_lookup
-%define initializer-suffix   ,0
-%readonly-tables
-%struct-type
-
-%{
 #include <asm/unistd.h>
 
 #define MAX_SYSCALL_NO {{MAX_SYSCALL_NO}}
@@ -328,22 +321,18 @@ static const char *syscall_names[] = {
 // a lookup table that describes the arguments to a particular system call
 const char *SYSCALL_ARGS[MAX_SYSCALL_NO + 1];
 
+static HV *syscall_lookup = NULL;
+
 void
 init_syscall_args(void)
 {
     memset(SYSCALL_ARGS, 0, sizeof(SYSCALL_ARGS));
 
+    syscall_lookup = newHV();
+
 {{SYSCALL_FORMATTING}}
+{{SYSCALL_LOOKUPS}}
 }
-
-%}
-
-struct syscall_name_num {
-    const char *name;
-    int syscall_no;
-};
-%%
-{{KEYWORDS}}
 END_GPERF
 
 my $tmpfile  = File::Temp->new(SUFFIX => '.c');
@@ -367,7 +356,9 @@ my %template_vars = (
             ?  qq{    SYSCALL_ARGS[__NR_$_] = "$FORMATS{$_}";}
             :  qq{    SYSCALL_ARGS[__NR_$_] = NULL;}
     } @syscalls),
-    KEYWORDS           => join("\n", map { "$_, __NR_$_" } @syscalls),
+    SYSCALL_LOOKUPS => join("\n", map {
+        qq{    hv_store(syscall_lookup, "$_", sizeof("$_") - 1, newSViv(__NR_$_), 0);}
+    } @syscalls),
 );
 
 $GPERF_TEMPLATE =~ s/\{\{(\w+)\}\}/$template_vars{$1}/ge;
