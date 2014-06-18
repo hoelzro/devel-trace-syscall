@@ -307,11 +307,6 @@ handle_syscall_enter(pid_t child)
             }
         }
 
-        status = ptrace(PTRACE_POKEDATA, child, (void *) &syscall_occurred, 1);
-        if(status == -1) {
-            return report_fatal_error();
-        }
-
         status = stubborn_write(channel[1], &info.syscall_no, sizeof(uint16_t));
 
         if(status < 0) {
@@ -322,6 +317,11 @@ handle_syscall_enter(pid_t child)
             } else if(errno != EINTR) {
                 return report_fatal_error();
             }
+        }
+
+        status = ptrace(PTRACE_POKEDATA, child, (void *) &syscall_occurred, 1);
+        if(status == -1) {
+            return report_fatal_error();
         }
 
         status = send_args(child, channel[1], &info);
