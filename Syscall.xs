@@ -188,6 +188,12 @@ pmemcpy(void *dst, size_t size, pid_t child, void *addr)
 }
 #endif
 
+static void
+handle_sigpipe(int signum)
+{
+    (void) signum;
+}
+
 static int
 send_args(pid_t child, int fd, struct syscall_info *info)
 {
@@ -381,6 +387,8 @@ run_parent(pid_t child)
     if(status == -1) {
         return report_fatal_error();
     }
+
+    signal(SIGPIPE, handle_sigpipe);
 
     while(waitpid(child, &status, 0) >= 0) {
         if(WIFSTOPPED(status) && WSTOPSIG(status) == (SIGTRAP | 0x80)) {
