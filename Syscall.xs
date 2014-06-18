@@ -365,7 +365,7 @@ handle_syscall_exit(pid_t child, int handled_previous_enter)
 }
 
 static int
-run_parent(pid_t child)
+run_parent(pid_t child, int *exit_code)
 {
     int status = -1;
     int enter = 1;
@@ -405,6 +405,9 @@ run_parent(pid_t child)
             }
             enter = !enter;
         } else if((status >> 8) == (SIGTRAP | PTRACE_EVENT_EXIT << 8)) {
+            ptrace(PTRACE_GETEVENTMSG, child, 0, exit_code);
+            // if this fails, we just end up with a 0 exit code, which is just fine
+            *exit_code = WEXITSTATUS(*exit_code);
             break;
         }
         status = ptrace(PTRACE_SYSCALL, child, 0, 0);
@@ -531,14 +534,15 @@ import(...)
 
         if(child) {
             int status;
+            int exit_code = 0;
             close(channel[0]);
             fcntl(channel[1], F_SETFL, O_NONBLOCK);
-            status = run_parent(child);
+            status = run_parent(child, &exit_code);
 
             if(status < 0 && errno != EPIPE) {
                 my_exit(1);
             }
-            my_exit(0);
+            my_exit(exit_code);
         } else {
             close(channel[1]);
             fcntl(channel[0], F_SETFL, O_NONBLOCK);
