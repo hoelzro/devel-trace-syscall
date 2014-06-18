@@ -1,9 +1,3 @@
-- import with no arguments - trap all system calls?
-- mmap/sbrk? (memory allocations)
 - system call happening in a destructor
-- Test system calls other than open
 - Mess up the file handles to test error handling
-- Overflow
 - Exception events
-- Exit code of the program
-- What about exec
