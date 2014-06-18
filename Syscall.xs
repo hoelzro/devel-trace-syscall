@@ -32,6 +32,10 @@
 // that we care about has occurred.  The parent sets this via ptrace
 static volatile int syscall_occurred __attribute__((aligned (WORD_SIZE))) = 0;
 
+// a flag that indicates that the pipe has overflowed; too many events were generated
+// at one time for the parent to send all of the data
+static volatile int overflow_occurred __attribute__((aligned (WORD_SIZE))) = 0;
+
 // a flag that indicates whether or not the child is flushing its event
 // stream.  This is used so that system calls related to the behavior
 // of this module don't pollute the event stream
@@ -61,6 +65,14 @@ _report_fatal_error(const char *filename, int line_no)
         warn("%s:%d: A logic error occurred in Devel::Trace::Syscall: %s", filename, line_no, strerror(errno));
     }
     return FATAL;
+}
+
+static void
+flip_overflow(pid_t child)
+{
+    // ignoring any errors, because we can't really do anything about it
+    // and the overflow stuff is for show
+    ptrace(PTRACE_POKEDATA, child, (void *) &overflow_occurred, 1);
 }
 
 // writes count bytes of buffer or dies trying.  Handles short writes
@@ -219,6 +231,7 @@ send_args(pid_t child, int fd, struct syscall_info *info)
                         }
                         if(status < 0) {
                             if(errno == EAGAIN) {
+                                flip_overflow(child);
                                 return PIPE_FULL;
                             } else {
                                 return report_fatal_error();
@@ -239,6 +252,7 @@ send_args(pid_t child, int fd, struct syscall_info *info)
                 status = stubborn_write(fd, &info->args[arg_idx++], sizeof(info->args[0]));
                 if(status < 0) {
                     if(errno == EAGAIN) {
+                        flip_overflow(child);
                         return PIPE_FULL;
                     } else if(errno != EINTR) {
                         return report_fatal_error();
@@ -296,7 +310,8 @@ handle_syscall_enter(pid_t child)
 
         if(status < 0) {
             if(errno == EAGAIN) {
-                // XXX print message, set flag
+                flip_overflow(child);
+
                 return 1;
             } else if(errno != EINTR) {
                 return report_fatal_error();
@@ -304,9 +319,7 @@ handle_syscall_enter(pid_t child)
         }
 
         status = send_args(child, channel[1], &info);
-        if(status == PIPE_FULL) {
-            // XXX print message, set flag
-        } else if(status != OK) {
+        if(status != OK && status != PIPE_FULL) {
             return status;
         }
         return 1;
@@ -335,7 +348,7 @@ handle_syscall_exit(pid_t child, int handled_previous_enter)
         status = stubborn_write(channel[1], &info.return_value, sizeof(int));
         if(status < 0) {
             if(errno == EAGAIN) {
-                // XXX print message; set flag
+                flip_overflow(child);
                 return OK;
             } else if(errno != EINTR) {
                 return report_fatal_error();
@@ -419,6 +432,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             while((c = stubborn_fgetc(fp)) != '\0') {
                 if(c == EOF) {
                     if(errno == EAGAIN) {
+                        fprintf(stderr, "...\", ...");
                         return PIPE_EMPTY;
                     } else {
                         return report_fatal_error();
@@ -434,6 +448,7 @@ read_and_print_args(FILE *fp, uint16_t syscall_no)
             int status = stubborn_fread(&arg_value, WORD_SIZE, fp);
             if(status == -1) {
                 if(errno == EAGAIN) {
+                    fprintf(stderr, "...");
                     return PIPE_EMPTY;
                 } else {
                     return report_fatal_error();
@@ -549,10 +564,9 @@ flush_events(SV *trace)
                     status = read_and_print_args(fp, syscall_no);
                     if(status < 0) {
                         if(status == PIPE_EMPTY) {
-                            // XXX the pipe should only ever come up short if we overflowed
                             clearerr(fp);
                             errno = 0;
-                            fprintf(stderr, "...) = ?%s", trace_chars);
+                            fprintf(stderr, ") = ?%s", trace_chars);
                             break;
                         } else { // FATAL
                             exit(1);
@@ -561,7 +575,6 @@ flush_events(SV *trace)
                     status = stubborn_fread(&return_value, sizeof(int), fp);
                     if(status < 0) {
                         if(errno == EAGAIN) {
-                            // XXX the pipe should only ever come up short if we overflowed
                             clearerr(fp);
                             errno = 0;
                             fprintf(stderr, ") = ?%s", trace_chars);
@@ -573,17 +586,26 @@ flush_events(SV *trace)
                     }
                     fprintf(stderr, ") = %d%s", return_value, trace_chars);
                 }
+
+                if(ferror(fp) && errno != EAGAIN) {
+                    report_fatal_error();
+                }
+
+                if(overflow_occurred) {
+                    fprintf(stderr, "Overflow occurred; some events may have been lost\n");
+                }
             } else {
                 char buffer[1024];
 
                 while(stubborn_fread(buffer, 1024, fp) > 0) {
                     // just discard it
                 }
+                if(ferror(fp) && errno != EAGAIN) {
+                    report_fatal_error();
+                }
             }
-            if(ferror(fp) && errno != EAGAIN) {
-                report_fatal_error();
-            }
-            is_flushing = 0;
+            overflow_occurred = 0;
+            is_flushing       = 0;
         }
 
 BOOT:
