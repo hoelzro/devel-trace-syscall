@@ -578,7 +578,7 @@ flush_events(SV *trace)
                             fprintf(stderr, ") = ?%s", trace_chars);
                             break;
                         } else { // FATAL
-                            exit(1);
+                            my_exit(1);
                         }
                     }
                     status = stubborn_fread(&return_value, sizeof(int), fp);
@@ -590,7 +590,7 @@ flush_events(SV *trace)
                             break;
                         } else { // FATAL
                             report_fatal_error();
-                            exit(1);
+                            my_exit(1);
                         }
                     }
                     fprintf(stderr, ") = %d%s", return_value, trace_chars);
