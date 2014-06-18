@@ -45,7 +45,7 @@ sub capture_trace_output {
         close $read;
         waitpid $pid, 0;
 
-        return \@lines;
+        return ( $? >> 8, \@lines );
     } else {
         close $read;
         close STDOUT;
@@ -206,16 +206,20 @@ sub fill_in_wildcards {
 chdir "$FindBin::Bin/../t_source";
 my @test_files = glob("*.pl");
 
-plan tests => scalar(@test_files);
+plan tests => @test_files * 2;
 
 $ENV{'PERL5LIB'} = '../blib/arch:../blib/lib';
 
 foreach my $filename (@test_files) {
     my ( $metadata, $expected_events ) = read_events_from_data($filename);
-    my @args         = split(/\s*,\s*/, $metadata->{'args'} || 'open');
-    my $output_lines = capture_trace_output($^X, '-d:Trace::Syscall=' . join(',', @args), $filename);
-    my $got_events   = parse_events($output_lines);
-    $got_events      = strip_unimportant_events($got_events);
+    my @args                           = split(/\s*,\s*/, $metadata->{'args'} || 'open');
+    my ( $exit_code, $output_lines )   = capture_trace_output($^X, '-d:Trace::Syscall=' . join(',', @args), $filename);
+    my $got_events                     = parse_events($output_lines);
+    $got_events                        = strip_unimportant_events($got_events);
+
+    my $expected_exit = $metadata->{'exit'} || 0;
+
+    is $exit_code, $expected_exit, "exit code for $filename should be correct";
 
     fill_in_wildcards($expected_events, $got_events, $metadata->{'extra'});
 
