@@ -380,7 +380,12 @@ run_parent(pid_t child, int *exit_code)
         }
     }
 
+#if HAS_PTRACE_O_EXITKILL
     status = ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL | PTRACE_O_TRACEEXIT | PTRACE_O_TRACESYSGOOD);
+#else
+    status = ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_TRACEEXIT | PTRACE_O_TRACESYSGOOD);
+#endif
+
     if(status == -1) {
         return report_fatal_error();
     }
