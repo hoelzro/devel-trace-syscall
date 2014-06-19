@@ -88,8 +88,6 @@ Does this sound familiar to you?  If so, you may find this module useful.  Once 
 uses C<ptrace> to trace the process, printing a stack trace whenever one of the system calls
 you specify is called.  How cool is that!
 
-=head1 HOW IT WORKS
-
 =head1 CAVEATS
 
 =over 4
