@@ -30,10 +30,10 @@ main(void)
             die("child died early");
         }
 
-        status = ptrace(PTRACE_SETOPTIONS, child, PTRACE_O_EXITKILL, 0);
+        status = ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL);
 
         if(status == -1) {
-            die("ptrace(PTRACE_SETOPTIONS, child, PTRACE_O_EXITKILL, 0) failed: %s", strerror(errno));
+            die("ptrace(PTRACE_SETOPTIONS, child, 0, PTRACE_O_EXITKILL) failed: %s", strerror(errno));
         }
         ptrace(PTRACE_DETACH, child, 0, 0);
 
