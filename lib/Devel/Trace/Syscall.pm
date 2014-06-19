@@ -11,7 +11,8 @@ use XSLoader;
 my $parent_pid = $$;
 
 BEGIN { # must happen at BEGIN time so that flush_events is available to DB::sub
-    XSLoader::load(__PACKAGE__, $Devel::Trace::Syscall::VERSION || '0');
+    # VERSION
+    XSLoader::load(__PACKAGE__, $Devel::Trace::Syscall::VERSION);
 }
 
 package
