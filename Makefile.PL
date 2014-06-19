@@ -57,6 +57,6 @@ WriteMakefile(
         'Syscall.o' => 'syscall-lookup.h',
     },
     clean => {
-        FILES => 'syscall-lookup.h',
+        FILES => 'syscall-lookup.h config.h',
     },
 );
