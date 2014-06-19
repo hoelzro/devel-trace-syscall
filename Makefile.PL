@@ -51,7 +51,7 @@ WriteMakefile(
     LIBS           => [''],
     DEFINE         => '',
     INC            => '-I.',
-    OBJECT         => '$(BASEEXT)$(OBJ_EXT)',
+    OBJECT         => '$(BASEEXT)$(OBJ_EXT) syscall-info-x86-64.o',
     CCFLAGS        => '-Wall -Wextra -Werror',
     depend         => {
         'Syscall.o' => 'syscall-lookup.h',
