@@ -171,12 +171,14 @@ Have a hook that users can use for finer-grain control
 
 L<ptrace(2)>
 
-=for comment
+=begin comment
 
 =over
 
 =item flush_events
 
 =back
+
+=end comment
 
 =cut
