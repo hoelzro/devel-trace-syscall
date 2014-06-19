@@ -12,6 +12,7 @@
 
 #include "syscall-lookup.h"
 #include "syscall-info.h"
+#include "config.h"
 
 #define OK         0
 #define FATAL      -1
