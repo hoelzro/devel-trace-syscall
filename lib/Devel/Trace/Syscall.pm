@@ -81,7 +81,7 @@ __END__
 
 Have you ever been looking at the C<strace> output for a Perl process, looking at all of the
 calls to C<open> or whatever and wondering "where the heck in my program are those happening"?
-You L<ack|http://beyondgrep.com/> the source code for calls to L<open> in vain, only to find
+You L<ack|http://beyondgrep.com/> the source code for calls to C<open> in vain, only to find
 that it's a stray invocation of C<-T> that you missed.
 
 Does this sound familiar to you?  If so, you may find this module useful.  Once loaded, it
