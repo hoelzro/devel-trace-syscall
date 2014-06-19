@@ -27,13 +27,15 @@ sub check_feature {
 
 sub generate_config_header {
     my $has_process_vm_readv = check_feature('test_process_vm_readv.c');
+    my $has_ptrace_exit_kill = check_feature('test_ptrace_exitkill.c');
 
     open my $fh, '>', 'config.h' or die "Unable to write config.h: $!";
     print {$fh} <<"END_CONFIG_H";
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define HAS_PROCESS_VM_READV $has_process_vm_readv
+#define HAS_PROCESS_VM_READV  $has_process_vm_readv
+#define HAS_PTRACE_O_EXITKILL $has_ptrace_exit_kill
 
 #endif
 END_CONFIG_H
