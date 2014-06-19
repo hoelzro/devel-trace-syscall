@@ -1,3 +1,4 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - First version!  Allows tracing of system calls across a program's lifetime
