@@ -2,6 +2,8 @@ use 5.008005;
 use ExtUtils::MakeMaker;
 use Config;
 
+##{ $share_dir_code{preamble} || '' ##}
+
 sub MY::postamble {
     return <<"END_MAKE";
 syscall-lookup.h:
@@ -46,10 +48,8 @@ generate_config_header();
 
 WriteMakefile(
     NAME           => 'Devel::Trace::Syscall',
-    VERSION_FROM   => 'lib/Devel/Trace/Syscall.pm',
-    PREREQ_PM      => { 'Test::More' => 0 },
-    ABSTRACT_FROM  => 'lib/Devel/Trace/Syscall.pm',
-    AUTHOR         => 'Rob Hoelz',
+    ##{ $plugin->get_default(qw(ABSTRACT AUTHOR LICENSE VERSION)) ##}
+    ##{ $plugin->get_prereqs(1) ##}
     LIBS           => [''],
     DEFINE         => '',
     INC            => '-I.',
@@ -62,3 +62,5 @@ WriteMakefile(
         FILES => 'syscall-lookup.h config.h',
     },
 );
+
+##{ $share_dir_code{postamble} || '' ##}
