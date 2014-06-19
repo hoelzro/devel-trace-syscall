@@ -113,6 +113,19 @@ Have a hook that users can use for finer-grain control
 
 L<ptrace(2)>
 
+=begin comment
+
+
+
+
+=end comment
+
+=over
+
+=item flush_events
+
+=back
+
 =head1 AUTHOR
 
 Rob Hoelz <rob@hoelz.ro>
