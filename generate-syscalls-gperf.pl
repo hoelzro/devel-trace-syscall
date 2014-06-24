@@ -357,7 +357,7 @@ my %template_vars = (
             :  qq{    SYSCALL_ARGS[__NR_$_] = NULL;}
     } @syscalls),
     SYSCALL_LOOKUPS => join("\n", map {
-        qq{    hv_store(syscall_lookup, "$_", sizeof("$_") - 1, newSViv(__NR_$_), 0);}
+        qq{    (void) hv_store(syscall_lookup, "$_", sizeof("$_") - 1, newSViv(__NR_$_), 0);}
     } @syscalls),
 );
 
