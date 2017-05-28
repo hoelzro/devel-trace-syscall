@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+        - Remove usage of Test::Differences::Color until that module has been fixed (GH #17, thanks Slaven Rezić for the report!)
+        - Fixed compilation warnings
 
 0.02 June 23 2014
         - Fix some POD problems
