@@ -5,8 +5,6 @@ use warnings;
 use autodie;
 use feature qw(say);
 
-use Carp::Always;
-
 use FindBin;
 use Test::More;
 use Test::Differences;
