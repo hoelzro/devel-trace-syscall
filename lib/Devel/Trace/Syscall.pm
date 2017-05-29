@@ -18,7 +18,7 @@ BEGIN { # must happen at BEGIN time so that flush_events is available to DB::sub
 package
 DB;
 
-no strict qw(vars);
+no strict qw(vars); ## no critic (TestingAndDebugging::ProhibitNoStrict)
 
 our $previous_trace = " (BEGIN)\n";
 my $grabbing_traceback;
@@ -32,7 +32,7 @@ sub DB {
 
 $deep = 100;
 sub sub {
-    no strict qw(refs);
+    no strict qw(refs); ## no critic (TestingAndDebugging::ProhibitNoStrict)
 
     if($grabbing_traceback) {
         return &$sub;
