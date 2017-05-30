@@ -46,6 +46,12 @@ END_CONFIG_H
 
 generate_config_header();
 
+my $ccflags = '-Wall -Wextra -Werror';
+
+if($^V =~ /5[.]20/) {
+    $ccflags .= ' -Wno-unused-function';
+}
+
 WriteMakefile(
     NAME           => 'Devel::Trace::Syscall',
     ##{ $plugin->get_default(qw(ABSTRACT AUTHOR LICENSE VERSION)) ##}
@@ -54,7 +60,7 @@ WriteMakefile(
     DEFINE         => '',
     INC            => '-I.',
     OBJECT         => '$(BASEEXT)$(OBJ_EXT) syscall-info-x86-64.o',
-    CCFLAGS        => '-Wall -Wextra -Werror',
+    CCFLAGS        => $ccflags,
     depend         => {
         'Syscall.o' => 'syscall-lookup.h',
     },
