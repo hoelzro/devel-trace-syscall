@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+
+0.04 May 31 2017
         - Removed debugging code
         - Fix build problems on some perls
 
